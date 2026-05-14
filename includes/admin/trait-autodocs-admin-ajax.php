@@ -1,0 +1,322 @@
+<?php
+
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+trait AutoDocs_Admin_Ajax_Trait
+{
+    /**
+     * Require manage_options, Google connection, and OAuth scope version.
+     */
+    private function guard_google_tokens_ok()
+    {
+        if (! current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('Permission denied.', 'autodocs-publisher')), 403);
+        }
+        if (! $this->google_client->is_connected()) {
+            wp_send_json_error(array('message' => __('Connect Google Drive first.', 'autodocs-publisher')));
+        }
+        if ($this->google_client->tokens_need_reconnect_for_scopes()) {
+            wp_send_json_error(array(
+                'message' => __('Your Google connection must be renewed. Open the Settings tab, click Disconnect Google, then Connect again so Drive permissions (full Drive, Docs read-only, account email) are granted.', 'autodocs-publisher'),
+                'code' => 'needs_reconnect',
+            ));
+        }
+    }
+
+    public function ajax_sync_now()
+    {
+        check_ajax_referer('autodocs_sync_now', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('Permission denied.', 'autodocs-publisher')), 403);
+        }
+
+        $result = $this->sync_service->sync_all(true);
+        wp_send_json_success($result);
+    }
+
+    public function ajax_refresh_statuses()
+    {
+        check_ajax_referer('autodocs_sync_now', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('Permission denied.', 'autodocs-publisher')), 403);
+        }
+
+        $this->sync_service->refresh_known_statuses();
+        wp_send_json_success(array('message' => __('Statuses refreshed.', 'autodocs-publisher')));
+    }
+
+    public function ajax_list_drive_folders()
+    {
+        check_ajax_referer('autodocs_sync_now', 'nonce');
+
+        $this->guard_google_tokens_ok();
+
+        $parent_id = isset($_POST['parent_id']) ? sanitize_text_field(wp_unslash($_POST['parent_id'])) : 'root';
+        if ('' === $parent_id) {
+            $parent_id = 'root';
+        }
+
+        if ('root' !== $parent_id && (strlen($parent_id) > 256 || ! preg_match('/^[A-Za-z0-9._-]+$/', $parent_id))) {
+            wp_send_json_error(array('message' => __('Invalid folder id.', 'autodocs-publisher')));
+        }
+
+        $folders = $this->google_client->list_folders($parent_id);
+        if (is_wp_error($folders)) {
+            wp_send_json_error(array('message' => $folders->get_error_message()));
+        }
+
+        wp_send_json_success(array(
+            'folders' => $folders,
+            'parent_id' => $parent_id,
+        ));
+    }
+
+    public function ajax_prepare_import_new()
+    {
+        check_ajax_referer('autodocs_import', 'nonce');
+
+        if (! current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('Permission denied.', 'autodocs-publisher')), 403);
+        }
+
+        $this->guard_google_tokens_ok();
+
+        $folder_id = isset($_POST['folder_id']) ? sanitize_text_field(wp_unslash($_POST['folder_id'])) : '';
+        if ($folder_id === '' || strlen($folder_id) > 256 || ! preg_match('/^[A-Za-z0-9._-]+$/', $folder_id)) {
+            wp_send_json_error(array('message' => __('Invalid folder id.', 'autodocs-publisher')));
+        }
+
+        $bucket_key = isset($_POST['bucket_key']) ? sanitize_key((string) wp_unslash($_POST['bucket_key'])) : 'new';
+        if ('modified' === $bucket_key) {
+            $bucket_key = 'synced';
+        }
+        if (! in_array($bucket_key, array('new', 'synced'), true)) {
+            $bucket_key = 'new';
+        }
+
+        $data = $this->sync_service->prepare_folder_import($folder_id, $bucket_key);
+        if (is_wp_error($data)) {
+            wp_send_json_error(array('message' => $data->get_error_message()));
+        }
+
+        wp_send_json_success($data);
+    }
+
+    /**
+     * ACF body-target fields for the import UI, scoped to a post type (matches ACF location rules).
+     */
+    public function ajax_import_acf_body_choices()
+    {
+        check_ajax_referer('autodocs_import', 'nonce');
+
+        if (! current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('Permission denied.', 'autodocs-publisher')), 403);
+        }
+
+        $pt = isset($_POST['post_type']) ? sanitize_key((string) wp_unslash($_POST['post_type'])) : 'post';
+        if (! post_type_exists($pt)) {
+            $pt = 'post';
+        }
+
+        $choices = AutoDocs_Acf_Helpers::list_body_target_fields($pt);
+
+        wp_send_json_success(array(
+            'acf_body_field_choices' => $choices,
+            'acf_select_custom_value' => AutoDocs_Acf_Helpers::SELECT_CUSTOM_VALUE,
+        ));
+    }
+
+    public function ajax_import_new_folder()
+    {
+        check_ajax_referer('autodocs_import', 'nonce');
+
+        if (! current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('Permission denied.', 'autodocs-publisher')), 403);
+        }
+
+        $this->guard_google_tokens_ok();
+
+        $folder_id = isset($_POST['folder_id']) ? sanitize_text_field(wp_unslash($_POST['folder_id'])) : '';
+        if ($folder_id === '' || strlen($folder_id) > 256 || ! preg_match('/^[A-Za-z0-9._-]+$/', $folder_id)) {
+            wp_send_json_error(array('message' => __('Invalid folder id.', 'autodocs-publisher')));
+        }
+
+        $bucket_key = isset($_POST['bucket_key']) ? sanitize_key((string) wp_unslash($_POST['bucket_key'])) : 'new';
+        if ('modified' === $bucket_key) {
+            $bucket_key = 'synced';
+        }
+        if (! in_array($bucket_key, array('new', 'synced'), true)) {
+            $bucket_key = 'new';
+        }
+
+        $cats = array();
+        if (! empty($_POST['categories']) && is_array($_POST['categories'])) {
+            foreach ($_POST['categories'] as $cid) {
+                $cats[] = (int) $cid;
+            }
+        }
+
+        $input = array(
+            'bucket_key' => $bucket_key,
+            'post_title' => isset($_POST['post_title']) ? wp_unslash($_POST['post_title']) : '',
+            'post_name' => isset($_POST['post_name']) ? wp_unslash($_POST['post_name']) : '',
+            'post_type' => isset($_POST['post_type']) ? wp_unslash($_POST['post_type']) : '',
+            'post_status' => isset($_POST['post_status']) ? wp_unslash($_POST['post_status']) : '',
+            'post_excerpt' => isset($_POST['post_excerpt']) ? wp_unslash($_POST['post_excerpt']) : '',
+            'tags' => isset($_POST['tags']) ? wp_unslash($_POST['tags']) : '',
+            'categories' => $cats,
+            'categories_mode' => isset($_POST['categories_mode']) ? wp_unslash($_POST['categories_mode']) : '',
+            'tags_mode' => isset($_POST['tags_mode']) ? wp_unslash($_POST['tags_mode']) : '',
+            'move_to_synced' => ! empty($_POST['move_to_synced']),
+            'acf_body_field' => isset($_POST['acf_body_field']) ? sanitize_text_field(wp_unslash($_POST['acf_body_field'])) : '',
+            'acf_body_field_custom' => isset($_POST['acf_body_field_custom']) ? sanitize_text_field(wp_unslash($_POST['acf_body_field_custom'])) : '',
+        );
+
+        $result = $this->sync_service->import_new_folder_from_drive($folder_id, $input);
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+
+        $edit = get_edit_post_link($result['post_id'], 'raw');
+        wp_send_json_success(array(
+            'post_id' => $result['post_id'],
+            'moved' => ! empty($result['moved']),
+            'edit_url' => $edit ? $edit : '',
+        ));
+    }
+
+    public function ajax_drive_item_meta()
+    {
+        check_ajax_referer('autodocs_sync_now', 'nonce');
+        $this->guard_google_tokens_ok();
+
+        $file_id = isset($_POST['file_id']) ? sanitize_text_field(wp_unslash($_POST['file_id'])) : '';
+        if ($file_id === '' || strlen($file_id) > 256 || ! preg_match('/^[A-Za-z0-9._-]+$/', $file_id)) {
+            wp_send_json_error(array('message' => __('Invalid file id.', 'autodocs-publisher')));
+        }
+
+        $meta = $this->google_client->get_file_meta($file_id);
+        if (is_wp_error($meta)) {
+            wp_send_json_error(array('message' => $meta->get_error_message()));
+        }
+
+        wp_send_json_success(array(
+            'id' => isset($meta['id']) ? (string) $meta['id'] : $file_id,
+            'name' => isset($meta['name']) ? (string) $meta['name'] : '',
+        ));
+    }
+
+    public function ajax_list_bucket_articles()
+    {
+        check_ajax_referer('autodocs_sync_now', 'nonce');
+        $this->guard_google_tokens_ok();
+
+        $bucket_id = isset($_POST['bucket_id']) ? sanitize_text_field(wp_unslash($_POST['bucket_id'])) : '';
+        $bucket_label = isset($_POST['bucket_label']) ? sanitize_text_field(wp_unslash($_POST['bucket_label'])) : '';
+        $list_mode = isset($_POST['list_mode']) ? sanitize_key((string) wp_unslash($_POST['list_mode'])) : '';
+
+        if ($bucket_id === '' || strlen($bucket_id) > 256 || ! preg_match('/^[A-Za-z0-9._-]+$/', $bucket_id)) {
+            wp_send_json_error(array('message' => __('Invalid bucket id.', 'autodocs-publisher')));
+        }
+
+        if ('modified' === $list_mode) {
+            $synced = (string) $this->settings->get('folder_synced', '');
+            if ($synced === '' || $bucket_id !== $synced) {
+                wp_send_json_error(array('message' => __('Choose a Synced bucket folder on the Drive tab to list modified articles.', 'autodocs-publisher')));
+            }
+            $articles = $this->sync_service->list_modified_articles_from_synced_bucket($bucket_label);
+        } else {
+            $articles = $this->sync_service->list_bucket_articles_detailed($bucket_id, $bucket_label);
+        }
+        if (is_wp_error($articles)) {
+            wp_send_json_error(array('message' => $articles->get_error_message()));
+        }
+
+        wp_send_json_success(array('articles' => $articles));
+    }
+
+    public function ajax_sidebar_snapshot()
+    {
+        check_ajax_referer('autodocs_sync_now', 'nonce');
+
+        if (! current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('Permission denied.', 'autodocs-publisher')), 403);
+        }
+
+        if (! $this->google_client->is_connected()) {
+            wp_send_json_success(array(
+                'connected' => false,
+                'needs_reconnect' => false,
+            ));
+        }
+
+        if ($this->google_client->tokens_need_reconnect_for_scopes()) {
+            wp_send_json_success(array(
+                'connected' => true,
+                'needs_reconnect' => true,
+            ));
+        }
+
+        $settings = $this->settings->all();
+        $root_id = isset($settings['working_folder_id']) ? trim((string) $settings['working_folder_id']) : '';
+        $root_name = isset($settings['working_folder_name']) ? (string) $settings['working_folder_name'] : '';
+        $fn = isset($settings['folder_new']) ? trim((string) $settings['folder_new']) : '';
+        $fs = isset($settings['folder_synced']) ? trim((string) $settings['folder_synced']) : '';
+
+        if ($root_id !== '' && $root_name === '') {
+            $rm = $this->google_client->get_file_meta($root_id);
+            if (! is_wp_error($rm) && ! empty($rm['name'])) {
+                $root_name = (string) $rm['name'];
+            }
+        }
+
+        $name_for = function ($id) {
+            if ($id === '') {
+                return '';
+            }
+            $m = $this->google_client->get_file_meta($id);
+            return (! is_wp_error($m) && ! empty($m['name'])) ? (string) $m['name'] : '';
+        };
+
+        $count_rows = function ($bucket_id) {
+            if ($bucket_id === '') {
+                return 0;
+            }
+            $r = $this->sync_service->list_bucket_articles_detailed($bucket_id, '');
+            return is_wp_error($r) ? 0 : count($r);
+        };
+
+        $email = $this->google_client->fetch_user_email();
+        $email_str = is_wp_error($email) ? '' : $email;
+
+        $n = $count_rows($fn);
+        $s = $count_rows($fs);
+        $mod = $this->sync_service->count_modified_articles_in_synced_bucket();
+
+        wp_send_json_success(array(
+            'connected' => true,
+            'needs_reconnect' => false,
+            'email' => $email_str,
+            'root' => array('id' => $root_id, 'name' => $root_name),
+            'buckets' => array(
+                'new' => array('id' => $fn, 'name' => $fn !== '' ? $name_for($fn) : ''),
+                'synced' => array('id' => $fs, 'name' => $fs !== '' ? $name_for($fs) : ''),
+                'modified' => array(
+                    'id' => $fs,
+                    'name' => $fs !== '' ? $name_for($fs) : '',
+                    'note' => __('Same folder as Synced; counts docs with changes since last import.', 'autodocs-publisher'),
+                ),
+            ),
+            'counts' => array(
+                'new' => $n,
+                'synced' => $s,
+                'modified' => $mod,
+                'total' => $n + $s,
+            ),
+        ));
+    }
+}

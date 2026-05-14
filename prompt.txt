@@ -1,0 +1,35 @@
+# AutoDocs Publisher — product / build prompt
+
+## Goal
+WordPress plugin: sync Google Docs (via Drive export) into WordPress posts, with clear **New / Synced / Modified** buckets, **manual import** from New, optional **doc front matter** between `[META START]` and `[META END]`, and **Drive folder move** to Synced after import when configured.
+
+## Google OAuth
+- Use WordPress HTTP API for token exchange and refresh.
+- **Redirect URI** must be: `{site}/wp-admin/admin-ajax.php?action=autodocs_google_oauth_callback`
+- Scopes (space-separated): **full Drive**, **Documents readonly**, **userinfo.email** (for admin sidebar).
+- Persist `oauth_scope_version` on successful code exchange; when bumped, show admin notice: disconnect + reconnect.
+- Map API error text containing `insufficient authentication scopes` to a clear reconnect message.
+
+## Admin UX (BEM)
+- Block `autodocs-settings`: layout `autodocs-settings__layout` with `__primary` (form) and `__aside` (`autodocs-sidebar`).
+- **Drive tab**: `autodocs-drive-root` card showing **folder name** + **folder ID**; hidden `working_folder_name` saved with options; browse sets both.
+- **Articles tab**: `autodocs-articles-shell` with `__main` (tables) and `__aside` (`autodocs-import-aside`). Tables: `autodocs-articles-table` with columns per mockup (select radio for New only, article+thumb, path, modified, size, Open in Drive).
+- Import form loads in aside on row select; show **featured image preview** when Drive returns `thumbnailLink`.
+- Right **sidebar**: connection status, account email, folder tree summary, counts of importable article folders per bucket (server-computed).
+
+## REST / AJAX
+- `autodocs_list_drive_folders` — nonce `autodocs_sync_now`
+- `autodocs_list_bucket_articles` — detailed rows for a bucket
+- `autodocs_drive_item_meta` — resolve folder id → name for display
+- `autodocs_sidebar_snapshot` — connection + email + folder labels + counts (may return `needs_reconnect` without error)
+- `autodocs_prepare_import_new` / `autodocs_import_new_folder` — nonce `autodocs_import`; guard stale OAuth scope before Drive calls
+
+## Sync rules (summary)
+- New bucket: **no auto-sync**; import-only UI.
+- Synced / Modified: sync per article subfolder (Doc + optional featured image).
+- Track by Google file id; hash / modified time for change detection.
+
+## Code style
+- Prefer small focused classes; avoid unrelated refactors.
+- Match existing PHP (WordPress APIs, `WP_Error`, escaping, i18n).
+- CSS: BEM for new blocks; keep legacy class hooks where needed.
