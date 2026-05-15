@@ -272,7 +272,8 @@ final class AutoDocs_Sync_Catalog
         if ($include_doc_meta) {
             $html_export = $this->google_client->export_doc_html($doc_file['id']);
             if (! is_wp_error($html_export) && is_string($html_export)) {
-                $parsed_row = AutoDocs_Doc_Meta::parse_and_strip($html_export);
+                $doc_id = isset($doc_file['id']) ? (string) $doc_file['id'] : '';
+                $parsed_row = AutoDocs_Doc_Meta::extract_from_export($this->google_client, $doc_id, $html_export);
                 $mr = $parsed_row['meta'];
                 if (! empty($mr['categories'])) {
                     $meta_cats = (string) $mr['categories'];

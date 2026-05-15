@@ -42,6 +42,7 @@ class AutoDocs_Admin
         add_action('wp_ajax_autodocs_prepare_import_new', array($this, 'ajax_prepare_import_new'));
         add_action('wp_ajax_autodocs_import_acf_body_choices', array($this, 'ajax_import_acf_body_choices'));
         add_action('wp_ajax_autodocs_import_new_folder', array($this, 'ajax_import_new_folder'));
+        add_action('wp_ajax_autodocs_bulk_import_folders', array($this, 'ajax_bulk_import_folders'));
         add_action('wp_ajax_autodocs_google_oauth_callback', array($this, 'ajax_google_oauth_callback'));
         add_action('wp_ajax_nopriv_autodocs_google_oauth_callback', array($this, 'ajax_google_oauth_callback'));
 
@@ -153,9 +154,16 @@ class AutoDocs_Admin
         wp_register_script('autodocs-admin-drive-picker', $url . 'assets/js/autodocs-admin-drive-picker.js', array('autodocs-admin-core', 'autodocs-admin-format'), $ver, true);
         wp_register_script('autodocs-admin-import-form', $url . 'assets/js/autodocs-admin-import-form.js', array('autodocs-admin-core', 'autodocs-admin-format'), $ver, true);
         wp_register_script(
+            'autodocs-admin-import-wizard',
+            $url . 'assets/js/autodocs-admin-import-wizard.js',
+            array('autodocs-admin-core', 'autodocs-admin-format'),
+            $ver,
+            true
+        );
+        wp_register_script(
             'autodocs-admin-bucket-ui',
             $url . 'assets/js/autodocs-admin-bucket-ui.js',
-            array('autodocs-admin-core', 'autodocs-admin-format', 'autodocs-admin-sidebar', 'autodocs-admin-drive-picker', 'autodocs-admin-import-form'),
+            array('autodocs-admin-core', 'autodocs-admin-format', 'autodocs-admin-sidebar', 'autodocs-admin-drive-picker', 'autodocs-admin-import-wizard'),
             $ver,
             true
         );

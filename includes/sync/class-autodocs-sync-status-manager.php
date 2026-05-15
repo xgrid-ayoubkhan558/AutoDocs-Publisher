@@ -115,7 +115,7 @@ final class AutoDocs_Sync_Status_Manager
                     if (is_wp_error($html)) {
                         break;
                     }
-                    $body = AutoDocs_Doc_Meta::parse_and_strip($html)['body_html'];
+                    $body = AutoDocs_Doc_Meta::extract_from_export($this->google_client, $file['id'], $html)['body_html'];
                     $h = hash('sha256', $body);
                     update_post_meta($post_id, AutoDocs_Sync_Meta::META_STATUS, hash_equals($saved_hash, $h) ? 'synced' : 'modified');
                     break;

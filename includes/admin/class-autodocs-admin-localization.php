@@ -14,6 +14,21 @@ final class AutoDocs_Admin_Localization
      */
     public static function publisher_config(AutoDocs_Settings $settings)
     {
+        $authors = array();
+        $users = get_users(
+            array(
+                'capability' => 'edit_posts',
+                'number' => 100,
+                'orderby' => 'display_name',
+            )
+        );
+        foreach ($users as $user) {
+            $authors[] = array(
+                'id' => (int) $user->ID,
+                'name' => $user->display_name,
+            );
+        }
+
         return array(
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('autodocs_sync_now'),
@@ -21,6 +36,8 @@ final class AutoDocs_Admin_Localization
             'importNonce' => wp_create_nonce('autodocs_import'),
             'oauthNonce' => wp_create_nonce('autodocs_google_oauth'),
             'redirectUri' => $settings->redirect_uri(),
+            'currentUserId' => get_current_user_id(),
+            'authors' => $authors,
             'i18n' => array(
                 'browseDrive' => __('Browse Drive…', 'autodocs-publisher'),
                 'up' => __('Up', 'autodocs-publisher'),
@@ -86,6 +103,48 @@ final class AutoDocs_Admin_Localization
                 'prevPage' => __('Previous', 'autodocs-publisher'),
                 'nextPage' => __('Next', 'autodocs-publisher'),
                 'pageOf' => __('Page %1$s of %2$s (%3$s articles)', 'autodocs-publisher'),
+                'wizardTitle' => __('Import & Preview', 'autodocs-publisher'),
+                'wizardBack' => __('Back to Articles', 'autodocs-publisher'),
+                'wizardStepSelect' => __('Select Articles', 'autodocs-publisher'),
+                'wizardStepPreview' => __('Preview & Configure', 'autodocs-publisher'),
+                'wizardStepConfirm' => __('Confirm & Import', 'autodocs-publisher'),
+                'wizardSelected' => __('Selected Articles', 'autodocs-publisher'),
+                'wizardClearAll' => __('Clear All', 'autodocs-publisher'),
+                'wizardSearch' => __('Search selected…', 'autodocs-publisher'),
+                'wizardContinue' => __('Continue to Preview', 'autodocs-publisher'),
+                'wizardChangeArticle' => __('Change article', 'autodocs-publisher'),
+                'wizardTabContent' => __('Content Preview', 'autodocs-publisher'),
+                'wizardTabMeta' => __('Metadata (META)', 'autodocs-publisher'),
+                'wizardTabImages' => __('Images & Files', 'autodocs-publisher'),
+                'wizardTabDrive' => __('Drive Info', 'autodocs-publisher'),
+                'wizardImportOptions' => __('Import Options', 'autodocs-publisher'),
+                'wizardAuthor' => __('Author', 'autodocs-publisher'),
+                'wizardCategoryAssignment' => __('Category assignment', 'autodocs-publisher'),
+                'wizardTagsAssignment' => __('Tags assignment', 'autodocs-publisher'),
+                'wizardFeaturedImage' => __('Featured image', 'autodocs-publisher'),
+                'wizardFromMeta' => __('From document (META)', 'autodocs-publisher'),
+                'wizardManualCategories' => __('Choose WordPress categories', 'autodocs-publisher'),
+                'wizardManualTags' => __('Enter tags manually', 'autodocs-publisher'),
+                'wizardUseDocImage' => __('Use image from document', 'autodocs-publisher'),
+                'wizardImportExcerpt' => __('Import excerpt', 'autodocs-publisher'),
+                'wizardImportExcerptHint' => __('Use excerpt from META or document.', 'autodocs-publisher'),
+                'wizardMoveSynced' => __('Move folder to Synced after import', 'autodocs-publisher'),
+                'wizardMetaDetected' => __('META detected in document. Title, excerpt, categories and other settings will be imported from the document\'s META block.', 'autodocs-publisher'),
+                'wizardCancel' => __('Cancel', 'autodocs-publisher'),
+                'wizardImportN' => __('Import %s Articles', 'autodocs-publisher'),
+                'wizardImportOne' => __('Import Article', 'autodocs-publisher'),
+                'wizardOpen' => __('Import & Preview', 'autodocs-publisher'),
+                'wizardSelectHint' => __('Select articles from the list below, then continue to preview and configure import settings.', 'autodocs-publisher'),
+                'wizardConfirmHint' => __('Review your selection and import settings, then import to WordPress.', 'autodocs-publisher'),
+                'wizardImporting' => __('Importing…', 'autodocs-publisher'),
+                'wizardDone' => __('Import complete.', 'autodocs-publisher'),
+                'wizardDocStats' => __('Document stats', 'autodocs-publisher'),
+                'wizardNoFiles' => __('No additional files in this folder.', 'autodocs-publisher'),
+                'wizardNoMeta' => __('No META block found in this document.', 'autodocs-publisher'),
+                'wizardSelectOne' => __('Select at least one article.', 'autodocs-publisher'),
+                'wizardOfSelected' => __('%1$s of %2$s selected', 'autodocs-publisher'),
+                'wizardNewBadge' => __('New', 'autodocs-publisher'),
+                'wizardSelectAll' => __('Select all on this page', 'autodocs-publisher'),
             ),
         );
     }

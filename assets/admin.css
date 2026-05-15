@@ -450,14 +450,6 @@
     font-weight: 600;
 }
 
-.autodocs-settings__header-actions {
-    align-items: center;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-left: auto;
-}
-
 .autodocs-sync-summary {
     background: #f6f7f7;
     border: 1px solid #dcdcde;
@@ -835,11 +827,6 @@
         flex-direction: column;
     }
 
-    .autodocs-settings__header-actions {
-        margin-left: 0;
-        width: 100%;
-    }
-
     .autodocs-articles-shell__main,
     .autodocs-articles-shell__aside {
         flex-basis: 100%;
@@ -853,9 +840,7 @@
 }
 
 /* ——— Drive tab + dashboard (reference layout) ——— */
-.autodocs-settings {
-    background: #f8f9fa;
-}
+/* .autodocs-settings {} */
 
 .autodocs-tab-panel--drive {
     background: #fff;
@@ -1158,4 +1143,331 @@
     border-top: 1px solid #eee;
     margin-top: 8px;
     padding-top: 8px;
+}
+
+/* ——— Import wizard ——— */
+body.autodocs-import-wizard-open {
+    overflow: hidden;
+}
+
+.autodocs-articles-shell--full .autodocs-articles-shell__main {
+    flex: 1 1 100%;
+    max-width: 100%;
+}
+
+.autodocs-tab-panel__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.autodocs-articles-table__th-check,
+.autodocs-articles-table__td-check {
+    width: 36px;
+    vertical-align: middle;
+}
+
+.autodocs-import-wizard {
+    inset: 0;
+    position: fixed;
+    z-index: 100100;
+}
+
+.autodocs-import-wizard__backdrop {
+    background: rgba(0, 0, 0, 0.45);
+    inset: 0;
+    position: absolute;
+}
+
+.autodocs-import-wizard__panel {
+    background: #f0f0f1;
+    display: flex;
+    flex-direction: column;
+    inset: 24px 32px;
+    position: absolute;
+    border-radius: 8px;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+}
+
+.autodocs-import-wizard__header {
+    align-items: center;
+    background: #fff;
+    border-bottom: 1px solid #dcdcde;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 24px;
+    padding: 12px 20px;
+}
+
+.autodocs-import-wizard__title {
+    font-size: 18px;
+    margin: 0;
+}
+
+.autodocs-import-wizard__sync-hint {
+    color: #646970;
+    font-size: 12px;
+    margin-left: auto;
+}
+
+.autodocs-import-wizard__stepper {
+    background: #fff;
+    border-bottom: 1px solid #dcdcde;
+    display: flex;
+    gap: 0;
+    list-style: none;
+    margin: 0;
+    padding: 0 20px;
+}
+
+.autodocs-import-wizard__stepper-item {
+    align-items: center;
+    color: #646970;
+    display: flex;
+    gap: 8px;
+    padding: 12px 20px 12px 0;
+}
+
+.autodocs-import-wizard__stepper-item.is-active {
+    color: #2271b1;
+    font-weight: 600;
+}
+
+.autodocs-import-wizard__stepper-item.is-done .autodocs-import-wizard__stepper-num {
+    background: #00a32a;
+    color: #fff;
+}
+
+.autodocs-import-wizard__stepper-num {
+    align-items: center;
+    background: #dcdcde;
+    border-radius: 50%;
+    display: inline-flex;
+    font-size: 12px;
+    height: 24px;
+    justify-content: center;
+    width: 24px;
+}
+
+.autodocs-import-wizard__stepper-item.is-active .autodocs-import-wizard__stepper-num {
+    background: #2271b1;
+    color: #fff;
+}
+
+.autodocs-import-wizard__body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 16px 20px;
+}
+
+.autodocs-import-wizard__step[hidden] {
+    display: none !important;
+}
+
+.autodocs-import-wizard__select-toolbar {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 16px;
+    margin-bottom: 12px;
+}
+
+.autodocs-import-wizard__select-list {
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-radius: 6px;
+    max-height: 420px;
+    overflow: auto;
+}
+
+.autodocs-import-wizard__select-row {
+    align-items: flex-start;
+    border-bottom: 1px solid #f0f0f1;
+    display: flex;
+    gap: 10px;
+    padding: 10px 14px;
+}
+
+.autodocs-import-wizard__columns {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: minmax(200px, 240px) minmax(0, 1fr) minmax(260px, 300px);
+    min-height: 480px;
+}
+
+.autodocs-import-wizard__col {
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 14px 16px;
+}
+
+.autodocs-import-wizard__col-head {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.autodocs-import-wizard__col h3 {
+    font-size: 14px;
+    margin: 0 0 8px;
+}
+
+.autodocs-import-wizard__selected-nav {
+    flex: 1;
+    list-style: none;
+    margin: 0;
+    overflow: auto;
+    padding: 0;
+}
+
+.autodocs-import-wizard__selected-item {
+    background: transparent;
+    border: 0;
+    border-radius: 4px;
+    cursor: pointer;
+    display: block;
+    padding: 8px 10px;
+    text-align: left;
+    width: 100%;
+}
+
+.autodocs-import-wizard__selected-item.is-active,
+.autodocs-import-wizard__selected-item:hover {
+    background: #f0f6fc;
+}
+
+.autodocs-import-wizard__preview-head {
+    align-items: flex-start;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.autodocs-import-wizard__tabs {
+    border-bottom: 1px solid #dcdcde;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 12px;
+}
+
+.autodocs-import-wizard__tab {
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    margin-bottom: -1px;
+    padding: 8px 12px;
+}
+
+.autodocs-import-wizard__tab.is-active {
+    border-bottom-color: #2271b1;
+    color: #2271b1;
+    font-weight: 600;
+}
+
+.autodocs-import-wizard__preview-panels {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+}
+
+.autodocs-import-wizard__preview-panel[hidden] {
+    display: none !important;
+}
+
+.autodocs-import-wizard__preview-layout {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: minmax(0, 1fr) 160px;
+}
+
+.autodocs-import-wizard__content-html {
+    border: 1px solid #f0f0f1;
+    border-radius: 4px;
+    font-size: 13px;
+    line-height: 1.5;
+    max-height: 360px;
+    overflow: auto;
+    padding: 12px 14px;
+}
+
+.autodocs-import-wizard__doc-stats {
+    font-size: 12px;
+    margin: 0;
+}
+
+.autodocs-import-wizard__doc-stats dt {
+    color: #646970;
+    font-weight: 600;
+    margin-top: 8px;
+}
+
+.autodocs-import-wizard__doc-stats dd {
+    margin: 2px 0 0;
+}
+
+.autodocs-import-wizard__option-field {
+    margin-bottom: 12px;
+}
+
+.autodocs-import-wizard__option-field label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.autodocs-import-wizard__option-field select,
+.autodocs-import-wizard__option-field input[type="text"] {
+    max-width: 100%;
+    width: 100%;
+}
+
+.autodocs-import-wizard__check {
+    display: block;
+    margin-bottom: 8px;
+}
+
+.autodocs-import-wizard__footer {
+    align-items: center;
+    background: #fff;
+    border-top: 1px solid #dcdcde;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: space-between;
+    padding: 12px 20px;
+}
+
+.autodocs-import-wizard__footer-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.autodocs-import-wizard__confirm-list {
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-radius: 6px;
+    margin: 12px 0;
+    padding: 12px 20px;
+}
+
+@media screen and (max-width: 1200px) {
+    .autodocs-import-wizard__columns {
+        grid-template-columns: 1fr;
+    }
+
+    .autodocs-import-wizard__panel {
+        inset: 12px;
+    }
 }

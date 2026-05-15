@@ -189,6 +189,61 @@ trait AutoDocs_Admin_Ajax_Trait
         ));
     }
 
+    public function ajax_bulk_import_folders()
+    {
+        check_ajax_referer('autodocs_import', 'nonce');
+
+        if (! current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('Permission denied.', 'autodocs-publisher')), 403);
+        }
+
+        $this->guard_google_tokens_ok();
+
+        $folder_ids_raw = isset($_POST['folder_ids']) ? wp_unslash($_POST['folder_ids']) : '';
+        $folder_ids = is_string($folder_ids_raw) ? json_decode($folder_ids_raw, true) : array();
+        if (! is_array($folder_ids)) {
+            $folder_ids = array();
+        }
+        $folder_ids = array_values(array_filter(array_map('strval', $folder_ids)));
+
+        if (empty($folder_ids)) {
+            wp_send_json_error(array('message' => __('No articles selected.', 'autodocs-publisher')));
+        }
+
+        $bucket_key = isset($_POST['bucket_key']) ? sanitize_key((string) wp_unslash($_POST['bucket_key'])) : 'new';
+        if ('modified' === $bucket_key) {
+            $bucket_key = 'synced';
+        }
+        if (! in_array($bucket_key, array('new', 'synced'), true)) {
+            $bucket_key = 'new';
+        }
+
+        $cats = array();
+        if (! empty($_POST['categories']) && is_array($_POST['categories'])) {
+            foreach ($_POST['categories'] as $cid) {
+                $cats[] = (int) $cid;
+            }
+        }
+
+        $input = array(
+            'bucket_key' => $bucket_key,
+            'post_type' => isset($_POST['post_type']) ? wp_unslash($_POST['post_type']) : '',
+            'post_status' => isset($_POST['post_status']) ? wp_unslash($_POST['post_status']) : '',
+            'post_author' => isset($_POST['post_author']) ? (int) $_POST['post_author'] : 0,
+            'tags' => isset($_POST['tags']) ? wp_unslash($_POST['tags']) : '',
+            'categories' => $cats,
+            'categories_mode' => isset($_POST['categories_mode']) ? wp_unslash($_POST['categories_mode']) : '',
+            'tags_mode' => isset($_POST['tags_mode']) ? wp_unslash($_POST['tags_mode']) : '',
+            'move_to_synced' => ! empty($_POST['move_to_synced']),
+            'use_doc_excerpt' => ! empty($_POST['use_doc_excerpt']),
+            'acf_body_field' => isset($_POST['acf_body_field']) ? sanitize_text_field(wp_unslash($_POST['acf_body_field'])) : '',
+            'acf_body_field_custom' => isset($_POST['acf_body_field_custom']) ? sanitize_text_field(wp_unslash($_POST['acf_body_field_custom'])) : '',
+        );
+
+        $result = $this->sync_service->import_folders_bulk($folder_ids, $bucket_key, $input);
+        wp_send_json_success($result);
+    }
+
     public function ajax_drive_item_meta()
     {
         check_ajax_referer('autodocs_sync_now', 'nonce');

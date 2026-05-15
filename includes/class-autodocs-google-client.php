@@ -302,6 +302,24 @@ class AutoDocs_Google_Client
     }
 
     /**
+     * Structured Google Doc (preserves paragraph line breaks for META blocks).
+     *
+     * @param string $file_id Drive file ID of the Google Doc.
+     * @return array<string, mixed>|WP_Error
+     */
+    public function get_document($file_id)
+    {
+        $file_id = is_string($file_id) ? trim($file_id) : '';
+        if ($file_id === '') {
+            return new WP_Error('autodocs_invalid_doc', __('Missing Google Doc ID.', 'autodocs-publisher'));
+        }
+
+        $url = sprintf('https://docs.googleapis.com/v1/documents/%s', rawurlencode($file_id));
+
+        return $this->request('GET', $url);
+    }
+
+    /**
      * Download raw file bytes (for images stored in Drive).
      */
     public function download_file($file_id)

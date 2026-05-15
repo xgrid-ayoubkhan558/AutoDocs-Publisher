@@ -184,4 +184,15 @@ class AutoDocs_Sync_Service
     {
         return $this->import->import_new_folder_from_drive($folder_id, $input);
     }
+
+    /**
+     * @param string[] $folder_ids
+     * @param string   $bucket_key
+     * @param array<string, mixed> $input
+     * @return array{imported: int, failed: int, results: array<int, array<string, mixed>>}
+     */
+    public function import_folders_bulk(array $folder_ids, $bucket_key, array $input)
+    {
+        return $this->import->import_folders_bulk($folder_ids, $bucket_key, $input);
+    }
 }

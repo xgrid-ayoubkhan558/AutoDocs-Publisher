@@ -17,6 +17,7 @@
             perPage: perPage,
             panelPages: { new: 1, synced: 1, modified: 1 },
             panelLoaded: { new: '', synced: '', modified: '' },
+            cachedArticles: { new: [], synced: [], modified: [] },
             bucketSelectSelectors: ['#autodocs-bucket-new', '#autodocs-bucket-synced'],
             articlePanelRows: [
                 { key: 'new', panel: A.qs('#autodocs-article-list-new') },
@@ -115,6 +116,11 @@
             activeArticleKey: function () {
                 var tab = A.qs('.autodocs-articles-subtabs__tab.is-active[data-autodocs-article-sub]');
                 return tab ? tab.getAttribute('data-autodocs-article-sub') || 'new' : 'new';
+            },
+
+            getCachedArticles: function (bucketKey) {
+                bucketKey = bucketKey || this.activeArticleKey();
+                return this.cachedArticles[bucketKey] || [];
             },
 
             rowForKey: function (key) {
@@ -227,6 +233,8 @@
             renderArticlesTable: function (panel, articles, bucketKey, listMode) {
                 var ui = this;
                 listMode = listMode || '';
+                var cacheKey = listMode === 'modified' ? 'modified' : bucketKey;
+                ui.cachedArticles[cacheKey] = articles;
 
                 panel.appendChild(
                     A.el('p', {
@@ -240,6 +248,7 @@
 
                 var table = A.el('table', { class: 'widefat striped autodocs-articles-table' });
                 var trh = A.el('tr');
+                trh.appendChild(A.el('th', { scope: 'col', class: 'autodocs-articles-table__th-check' }));
                 ['article', 'categoryColumn', 'actions'].forEach(function (colKey) {
                     var labels = {
                         article: ui.t('article', 'Article'),
@@ -253,6 +262,13 @@
                 var tb = A.el('tbody');
                 articles.forEach(function (a) {
                     var tr = A.el('tr', { class: 'autodocs-articles-table__row' });
+                    var importBucketKey = listMode === 'modified' || bucketKey === 'modified' ? 'synced' : bucketKey;
+                    var checkTd = A.el('td', { class: 'autodocs-articles-table__td-check' });
+                    var rowCb = A.el('input', { type: 'checkbox', class: 'autodocs-article-row-check' });
+                    rowCb.setAttribute('data-folder-id', a.folder_id || '');
+                    rowCb.setAttribute('data-bucket-key', importBucketKey);
+                    checkTd.appendChild(rowCb);
+                    tr.appendChild(checkTd);
                     var artTd = A.el('td', { class: 'autodocs-articles-table__td-article' });
                     if (a.thumbnail_url) {
                         artTd.appendChild(
@@ -289,9 +305,11 @@
                         class: 'button button-small button-primary autodocs-article-import',
                         text: ui.t('import', 'Import')
                     });
-                    var importBucketKey = listMode === 'modified' || bucketKey === 'modified' ? 'synced' : bucketKey;
                     imp.setAttribute('data-folder-id', a.folder_id || '');
                     imp.setAttribute('data-bucket-key', importBucketKey);
+                    imp.setAttribute('data-doc-name', a.doc_name || '');
+                    imp.setAttribute('data-folder-name', a.folder_name || '');
+                    imp.setAttribute('data-path-label', a.path_label || '');
                     actTd.appendChild(imp);
                     tr.appendChild(actTd);
                     tb.appendChild(tr);

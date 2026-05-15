@@ -39,15 +39,6 @@ if (!defined('ABSPATH')) {
                         </span>
                     </span>
                 </div>
-                <div class="autodocs-settings__header-actions">
-                    <?php if ($connected) : ?>
-                        <button type="submit" class="button autodocs-settings__header-disconnect" form="autodocs-google-disconnect-form" onclick="return window.confirm('<?php echo esc_js(__('Disconnect Google Drive from this site?', 'autodocs-publisher')); ?>');">
-                            <?php esc_html_e('Disconnect Drive', 'autodocs-publisher'); ?>
-                        </button>
-                    <?php endif; ?>
-                    <button type="button" class="button autodocs-settings__header-test" id="autodocs-footer-test-connection"><?php esc_html_e('Test connection', 'autodocs-publisher'); ?></button>
-                    <button type="button" class="button" id="autodocs-sync-now"><?php esc_html_e('Sync Now', 'autodocs-publisher'); ?></button>
-                </div>
             </div>
             <?php $this->notice_reconnect_scopes(); ?>
             <?php $this->notice(); ?>
@@ -68,7 +59,7 @@ if (!defined('ABSPATH')) {
                     </h2>
 
                     <div id="autodocs-tab-panel-articles" class="autodocs-tab-panel autodocs-tab-panel--articles<?php echo 'articles' === $current_tab ? ' is-active' : ''; ?>" role="tabpanel" aria-labelledby="autodocs-tabbtn-articles" tabindex="0">
-                        <p class="autodocs-tab-panel__intro description"><?php esc_html_e('Use the New and Synced tabs to browse Drive article folders. The Modified tab lists items in your Synced bucket whose Google Doc changed since the last WordPress import (run “Check Statuses” or Sync to refresh detection). Optional document meta lives between [META START] and [META END] in each Google Doc.', 'autodocs-publisher'); ?></p>
+                        <p class="autodocs-tab-panel__intro description"><?php esc_html_e('Use the New and Synced tabs to browse Drive article folders. The Modified tab lists items in your Synced bucket whose Google Doc changed since the last WordPress import (use Refresh article lists to update). Optional document meta lives between [META START] and [META END] in each Google Doc.', 'autodocs-publisher'); ?></p>
                         <div class="autodocs-sync-summary" id="autodocs-sync-summary">
                             <h3 class="autodocs-sync-summary__title"><?php esc_html_e('Sync summary', 'autodocs-publisher'); ?></h3>
                             <dl class="autodocs-sync-summary__stats" id="autodocs-sidebar-summary">
@@ -84,7 +75,7 @@ if (!defined('ABSPATH')) {
                                     <dt><?php esc_html_e('Synced articles', 'autodocs-publisher'); ?></dt>
                                     <dd><span class="autodocs-sidebar__count autodocs-sidebar__count--synced" data-autodocs-count="synced">&mdash;</span></dd>
                                 </div>
-                                <div class="autodocs-sync-summary__stat autodocs-sync-summary__stat--total">
+                                <div class="autodocs-sync-summary__stat">
                                     <dt><?php esc_html_e('Total articles', 'autodocs-publisher'); ?></dt>
                                     <dd><span class="autodocs-sidebar__count autodocs-sidebar__count--total" data-autodocs-count="total">&mdash;</span></dd>
                                 </div>
@@ -92,6 +83,7 @@ if (!defined('ABSPATH')) {
                         </div>
                         <p class="autodocs-tab-panel__toolbar">
                             <button type="button" class="button" id="autodocs-refresh-article-lists"><?php esc_html_e('Refresh article lists', 'autodocs-publisher'); ?></button>
+                            <button type="button" class="button button-primary" id="autodocs-open-import-wizard"><?php esc_html_e('Import & Preview', 'autodocs-publisher'); ?></button>
                         </p>
                         <div class="autodocs-articles-subtabs" data-autodocs-article-subtabs>
                             <div class="autodocs-articles-subtabs__nav" role="tablist" aria-label="<?php esc_attr_e('Article bucket', 'autodocs-publisher'); ?>">
@@ -99,7 +91,7 @@ if (!defined('ABSPATH')) {
                                 <button type="button" role="tab" class="autodocs-articles-subtabs__tab" id="autodocs-article-subtab-synced" aria-selected="false" aria-controls="autodocs-article-subpanel-synced" data-autodocs-article-sub="synced"><?php esc_html_e('Synced', 'autodocs-publisher'); ?></button>
                                 <button type="button" role="tab" class="autodocs-articles-subtabs__tab" id="autodocs-article-subtab-modified" aria-selected="false" aria-controls="autodocs-article-subpanel-modified" data-autodocs-article-sub="modified"><?php esc_html_e('Modified', 'autodocs-publisher'); ?></button>
                             </div>
-                            <div class="autodocs-articles-shell">
+                            <div class="autodocs-articles-shell autodocs-articles-shell--full">
                                 <div class="autodocs-articles-shell__main">
                                     <div id="autodocs-article-subpanel-new" class="autodocs-articles-subtabs__panel is-active" role="tabpanel" aria-labelledby="autodocs-article-subtab-new">
                                         <div id="autodocs-article-list-new" class="autodocs-articles-table-wrap" aria-live="polite"></div>
@@ -111,11 +103,6 @@ if (!defined('ABSPATH')) {
                                         <div id="autodocs-article-list-modified" class="autodocs-articles-table-wrap" aria-live="polite"></div>
                                     </div>
                                 </div>
-                                <aside class="autodocs-articles-shell__aside autodocs-import-aside" id="autodocs-import-aside" aria-label="<?php esc_attr_e('Import selected article', 'autodocs-publisher'); ?>">
-                                    <h3 class="autodocs-import-aside__title"><?php esc_html_e('Import', 'autodocs-publisher'); ?></h3>
-                                    <p class="autodocs-import-aside__empty" id="autodocs-import-aside-empty"><?php esc_html_e('Choose New, Synced, or Modified above, then click Import on a row or select a row to configure import. Modified lists Google Docs in your Synced folder that changed since the last import.', 'autodocs-publisher'); ?></p>
-                                    <div id="autodocs-import-aside-body" class="autodocs-import-aside__body" hidden></div>
-                                </aside>
                             </div>
                         </div>
                     </div>
@@ -227,7 +214,7 @@ if (!defined('ABSPATH')) {
                                     <p class="autodocs-api-card__hint">
                                         <?php
                                         if ($connected) {
-                                            esc_html_e('Drive and Docs access is authorized. Use Disconnect Drive in the page header to revoke tokens. You can update credentials here.', 'autodocs-publisher');
+                                            esc_html_e('Drive and Docs access is authorized. Use Disconnect Drive below to revoke tokens. You can update credentials here.', 'autodocs-publisher');
                                         } elseif ($has_saved_creds) {
                                             esc_html_e('Credentials are saved. Click Connect to sign in with Google. After changing ID or secret, save settings first.', 'autodocs-publisher');
                                         } else {
@@ -238,7 +225,11 @@ if (!defined('ABSPATH')) {
                                 </div>
                             </div>
                             <div class="autodocs-api-card__actions">
-                                <?php if (!$connected && $has_saved_creds && $oauth_start_url !== '') : ?>
+                                <?php if ($connected) : ?>
+                                    <button type="submit" class="button" form="autodocs-google-disconnect-form" onclick="return window.confirm('<?php echo esc_js(__('Disconnect Google Drive from this site?', 'autodocs-publisher')); ?>');">
+                                        <?php esc_html_e('Disconnect Drive', 'autodocs-publisher'); ?>
+                                    </button>
+                                <?php elseif ($has_saved_creds && $oauth_start_url !== '') : ?>
                                     <a class="button button-primary" href="<?php echo esc_url($oauth_start_url); ?>"><?php esc_html_e('Connect Google Drive', 'autodocs-publisher'); ?></a>
                                 <?php endif; ?>
                             </div>
@@ -260,10 +251,10 @@ if (!defined('ABSPATH')) {
                     <div class="autodocs-settings-form-footer">
                         <div class="autodocs-settings-form-footer__right">
                             <?php submit_button(__('Save changes', 'autodocs-publisher'), 'primary', 'submit', false, array('id' => 'autodocs-save-settings')); ?>
-                            <span class="autodocs-settings-form-footer__result" id="autodocs-sync-result"></span>
                         </div>
                     </div>
                 </form>
 
             </div>
+            <?php include AUTODOCS_PUBLISHER_DIR . 'includes/admin/views/import-wizard.php'; ?>
         </div>

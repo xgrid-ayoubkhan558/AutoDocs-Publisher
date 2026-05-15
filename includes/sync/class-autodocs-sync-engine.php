@@ -186,7 +186,7 @@ final class AutoDocs_Sync_Engine
             return $result;
         }
 
-        $parsed = AutoDocs_Doc_Meta::parse_and_strip($html);
+        $parsed = AutoDocs_Doc_Meta::extract_from_export($this->google_client, $doc_file['id'], $html);
         $body_html = $parsed['body_html'];
         $sanitized_body = $this->media->sanitize_google_html($body_html);
         $body_hash = hash('sha256', $body_html);

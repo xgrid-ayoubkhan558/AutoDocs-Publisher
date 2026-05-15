@@ -130,11 +130,34 @@ final class AutoDocs_Sync_Import
         }
 
         $doc_file = null;
+        $image_file = null;
+        $drive_files = array();
         foreach ($files as $file) {
-            if (AutoDocs_Sync_Meta::MIME_DOC === $file['mimeType']) {
+            if (AutoDocs_Sync_Meta::MIME_DOC === ($file['mimeType'] ?? '') && null === $doc_file) {
                 $doc_file = $file;
-                break;
+                continue;
             }
+            $mt = $file['mimeType'] ?? '';
+            $is_image = in_array(
+                $mt,
+                array('image/jpeg', 'image/png', 'image/gif', 'image/webp'),
+                true
+            );
+            $fname = isset($file['name']) ? (string) $file['name'] : '';
+            $is_named = $fname !== '' && 0 === stripos($fname, 'featured');
+            if ($is_image || $is_named) {
+                if (null === $image_file) {
+                    $image_file = $file;
+                }
+            }
+            $drive_files[] = array(
+                'id' => isset($file['id']) ? (string) $file['id'] : '',
+                'name' => $fname !== '' ? $fname : __('(unnamed)', 'autodocs-publisher'),
+                'mimeType' => $mt,
+                'size' => isset($file['size']) ? (int) $file['size'] : 0,
+                'web_view_link' => isset($file['webViewLink']) ? (string) $file['webViewLink'] : '',
+                'thumbnail_url' => isset($file['thumbnailLink']) ? (string) $file['thumbnailLink'] : '',
+            );
         }
 
         if (null === $doc_file) {
@@ -146,7 +169,7 @@ final class AutoDocs_Sync_Import
             return $html;
         }
 
-        $parsed = AutoDocs_Doc_Meta::parse_and_strip($html);
+        $parsed = AutoDocs_Doc_Meta::extract_from_export($this->google_client, $doc_file['id'], $html);
         $meta = $parsed['meta'];
         $body_html = $parsed['body_html'];
 
@@ -202,26 +225,29 @@ final class AutoDocs_Sync_Import
         $existing_id = $this->repository->post_id_for_folder($folder_id);
 
         $featured_preview = null;
-        foreach ($files as $file) {
-            if (AutoDocs_Sync_Meta::MIME_DOC === ($file['mimeType'] ?? '')) {
-                continue;
-            }
-            $mt = $file['mimeType'] ?? '';
-            $is_image = in_array(
-                $mt,
-                array('image/jpeg', 'image/png', 'image/gif', 'image/webp'),
-                true
+        if ($image_file) {
+            $featured_preview = array(
+                'file_id' => $image_file['id'] ?? '',
+                'name' => isset($image_file['name']) ? (string) $image_file['name'] : '',
+                'thumbnail_url' => isset($image_file['thumbnailLink']) ? (string) $image_file['thumbnailLink'] : '',
             );
-            $is_named = isset($file['name']) && 0 === stripos((string) $file['name'], 'featured');
-            if ($is_image || $is_named) {
-                $featured_preview = array(
-                    'file_id' => $file['id'] ?? '',
-                    'name' => isset($file['name']) ? (string) $file['name'] : '',
-                    'thumbnail_url' => isset($file['thumbnailLink']) ? (string) $file['thumbnailLink'] : '',
-                );
-                break;
-            }
         }
+
+        $sanitized_preview_html = $this->media->sanitize_google_html($body_html);
+        $plain_for_stats = wp_strip_all_tags($sanitized_preview_html, true);
+        $doc_stats = array(
+            'type' => __('Google Doc', 'autodocs-publisher'),
+            'modified' => isset($doc_file['modifiedTime']) ? (string) $doc_file['modifiedTime'] : '',
+            'modified_formatted' => isset($doc_file['modifiedTime']) ? mysql2date(
+                get_option('date_format') . ' ' . get_option('time_format'),
+                $doc_file['modifiedTime']
+            ) : '',
+            'size' => isset($doc_file['size']) ? (int) $doc_file['size'] : 0,
+            'word_count' => $plain_for_stats !== '' ? str_word_count($plain_for_stats) : 0,
+            'image_count' => count(array_filter($drive_files, function ($f) {
+                return in_array($f['mimeType'], array('image/jpeg', 'image/png', 'image/gif', 'image/webp'), true);
+            })),
+        );
 
         $cat_mode_default = ! empty($meta['categories']) ? 'doc' : 'manual';
         $tag_mode_default = ! empty($meta['tags']) ? 'doc' : 'manual';
@@ -261,6 +287,10 @@ final class AutoDocs_Sync_Import
                 'acf_body_field_custom' => $def_acf_custom,
             ),
             'body_preview' => $this->build_plain_body_preview($body_html),
+            'content_html_preview' => $this->trim_html_preview($sanitized_preview_html),
+            'has_meta_block' => ! empty($meta),
+            'doc_stats' => $doc_stats,
+            'drive_files' => $drive_files,
             'doc_categories_preview' => $doc_categories_preview,
             'doc_tags_preview' => $doc_tags_preview,
             'acf_body_field_choices' => $acf_choices,
@@ -327,7 +357,7 @@ final class AutoDocs_Sync_Import
             return $html;
         }
 
-        $parsed = AutoDocs_Doc_Meta::parse_and_strip($html);
+        $parsed = AutoDocs_Doc_Meta::extract_from_export($this->google_client, $doc_file['id'], $html);
         $meta = $parsed['meta'];
         $body_html = $parsed['body_html'];
 
@@ -353,7 +383,14 @@ final class AutoDocs_Sync_Import
             $pstatus = 'draft';
         }
 
-        $excerpt = isset($input['post_excerpt']) ? sanitize_textarea_field(wp_unslash($input['post_excerpt'])) : (isset($meta['excerpt']) ? (string) $meta['excerpt'] : '');
+        $use_doc_excerpt = ! isset($input['use_doc_excerpt']) || ! empty($input['use_doc_excerpt']);
+        if ($use_doc_excerpt) {
+            $excerpt = isset($input['post_excerpt']) && (string) $input['post_excerpt'] !== ''
+                ? sanitize_textarea_field(wp_unslash($input['post_excerpt']))
+                : (isset($meta['excerpt']) ? (string) $meta['excerpt'] : '');
+        } else {
+            $excerpt = isset($input['post_excerpt']) ? sanitize_textarea_field(wp_unslash($input['post_excerpt'])) : '';
+        }
 
         $bucket_opt_map = array(
             'new' => 'folder_new',
@@ -373,6 +410,13 @@ final class AutoDocs_Sync_Import
             'post_status' => $pstatus,
             'post_type' => $ptype,
         );
+
+        if (! empty($input['post_author'])) {
+            $author_id = (int) $input['post_author'];
+            if ($author_id > 0 && get_userdata($author_id)) {
+                $postarr['post_author'] = $author_id;
+            }
+        }
 
         $existing = $this->repository->post_id_for_folder($folder_id);
         if ($existing) {
@@ -598,5 +642,81 @@ final class AutoDocs_Sync_Import
         $text = trim($text);
 
         return $text !== '' ? wp_trim_words($text, 80, '…') : '';
+    }
+
+    /**
+     * @param string $html
+     * @return string
+     */
+    private function trim_html_preview($html)
+    {
+        $html = is_string($html) ? trim($html) : '';
+        if ($html === '') {
+            return '';
+        }
+
+        return wp_kses_post(wp_trim_words($html, 400, '…'));
+    }
+
+    /**
+     * @param string[] $folder_ids
+     * @param string   $bucket_key
+     * @param array<string, mixed> $input
+     * @return array{imported: int, failed: int, results: array<int, array<string, mixed>>}
+     */
+    public function import_folders_bulk(array $folder_ids, $bucket_key, array $input)
+    {
+        $bucket_key = sanitize_key((string) $bucket_key);
+        if ('modified' === $bucket_key) {
+            $bucket_key = 'synced';
+        }
+        if (! in_array($bucket_key, array('new', 'synced'), true)) {
+            $bucket_key = 'new';
+        }
+
+        $input['bucket_key'] = $bucket_key;
+
+        $results = array();
+        $imported = 0;
+        $failed = 0;
+
+        foreach ($folder_ids as $folder_id) {
+            $folder_id = is_string($folder_id) ? trim($folder_id) : '';
+            if ($folder_id === '') {
+                continue;
+            }
+
+            $row_input = $input;
+            $row_input['post_title'] = '';
+            $row_input['post_name'] = '';
+            $row_input['post_excerpt'] = '';
+
+            $result = $this->import_folder_from_drive($folder_id, $row_input);
+            if (is_wp_error($result)) {
+                ++$failed;
+                $results[] = array(
+                    'folder_id' => $folder_id,
+                    'success' => false,
+                    'message' => $result->get_error_message(),
+                );
+                continue;
+            }
+
+            ++$imported;
+            $edit = get_edit_post_link($result['post_id'], 'raw');
+            $results[] = array(
+                'folder_id' => $folder_id,
+                'success' => true,
+                'post_id' => (int) $result['post_id'],
+                'moved' => ! empty($result['moved']),
+                'edit_url' => $edit ? $edit : '',
+            );
+        }
+
+        return array(
+            'imported' => $imported,
+            'failed' => $failed,
+            'results' => $results,
+        );
     }
 }
