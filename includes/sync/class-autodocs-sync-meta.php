@@ -18,6 +18,9 @@ final class AutoDocs_Sync_Meta
     public const META_SOURCE_ROOT = '_autodocs_source_root_folder';
     public const META_FIRST_IMPORTED = '_autodocs_first_imported_time';
 
+    /** Site-wide timestamp (mysql) updated when bulk sync completes. */
+    public const OPTION_LAST_SITE_SYNC = 'autodocs_publisher_last_site_sync';
+
     public const MIME_DOC = 'application/vnd.google-apps.document';
     public const MIME_FOLDER = 'application/vnd.google-apps.folder';
 }

@@ -108,6 +108,25 @@ class AutoDocs_Sync_Service
     }
 
     /**
+     * @return string Formatted site last sync for admin UI, or empty.
+     */
+    public function last_site_sync_formatted()
+    {
+        $raw = (string) get_option(AutoDocs_Sync_Meta::OPTION_LAST_SITE_SYNC, '');
+        if ($raw === '') {
+            $raw = $this->repository->latest_last_synced_mysql();
+        }
+        if ($raw === '') {
+            return '';
+        }
+
+        return (string) mysql2date(
+            get_option('date_format') . ' ' . get_option('time_format'),
+            $raw
+        );
+    }
+
+    /**
      * @return int|WP_Error
      */
     public function count_bucket_articles($bucket_id)

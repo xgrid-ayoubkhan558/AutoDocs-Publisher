@@ -82,6 +82,8 @@ final class AutoDocs_Sync_Engine
             }
         }
 
+        update_option(AutoDocs_Sync_Meta::OPTION_LAST_SITE_SYNC, current_time('mysql'), false);
+
         return $results;
     }
 

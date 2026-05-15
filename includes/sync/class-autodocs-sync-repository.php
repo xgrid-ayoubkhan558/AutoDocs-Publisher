@@ -127,4 +127,30 @@ final class AutoDocs_Sync_Repository
 
         return $ids;
     }
+
+    /**
+     * Most recent per-post sync time (mysql), for display when site option is unset.
+     *
+     * @return string
+     */
+    public function latest_last_synced_mysql()
+    {
+        $posts = get_posts(
+            array(
+                'post_type' => 'any',
+                'post_status' => array('publish', 'draft', 'pending', 'private', 'future'),
+                'meta_key' => AutoDocs_Sync_Meta::META_LAST_SYNCED,
+                'orderby' => 'meta_value',
+                'order' => 'DESC',
+                'posts_per_page' => 1,
+                'fields' => 'ids',
+            )
+        );
+
+        if (! $posts) {
+            return '';
+        }
+
+        return (string) get_post_meta((int) $posts[0], AutoDocs_Sync_Meta::META_LAST_SYNCED, true);
+    }
 }

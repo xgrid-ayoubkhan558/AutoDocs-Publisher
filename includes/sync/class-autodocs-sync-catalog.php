@@ -174,6 +174,8 @@ final class AutoDocs_Sync_Catalog
         $per_page = max(1, min(50, (int) $per_page));
         $bucket_label = is_string($bucket_label) ? $bucket_label : '';
 
+        $this->status->refresh_statuses_for_working_folder($synced, false);
+
         $total = $this->repository->count_posts_by_sync_status('modified');
         $offset = ($page - 1) * $per_page;
         $folder_ids = $this->repository->folder_ids_by_sync_status('modified', $per_page, $offset);
@@ -202,6 +204,11 @@ final class AutoDocs_Sync_Catalog
      */
     public function count_modified_articles_in_synced_bucket()
     {
+        $synced = (string) $this->settings->get('folder_synced', '');
+        if ($synced !== '') {
+            $this->status->refresh_statuses_for_working_folder($synced, false);
+        }
+
         return $this->repository->count_posts_by_sync_status('modified');
     }
 

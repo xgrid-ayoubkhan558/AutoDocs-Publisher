@@ -275,6 +275,7 @@ trait AutoDocs_Admin_Ajax_Trait
             'connected' => true,
             'needs_reconnect' => false,
             'email' => $email_str,
+            'last_sync_formatted' => $this->sync_service->last_site_sync_formatted(),
         );
 
         $include_counts = ! empty($_POST['include_counts']);
