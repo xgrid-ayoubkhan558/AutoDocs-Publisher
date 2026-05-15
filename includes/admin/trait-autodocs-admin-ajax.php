@@ -223,20 +223,23 @@ trait AutoDocs_Admin_Ajax_Trait
             wp_send_json_error(array('message' => __('Invalid bucket id.', 'autodocs-publisher')));
         }
 
+        $page = isset($_POST['page']) ? max(1, (int) $_POST['page']) : 1;
+        $per_page = isset($_POST['per_page']) ? max(1, min(50, (int) $_POST['per_page'])) : 20;
+
         if ('modified' === $list_mode) {
             $synced = (string) $this->settings->get('folder_synced', '');
             if ($synced === '' || $bucket_id !== $synced) {
                 wp_send_json_error(array('message' => __('Choose a Synced bucket folder on the Drive tab to list modified articles.', 'autodocs-publisher')));
             }
-            $articles = $this->sync_service->list_modified_articles_from_synced_bucket($bucket_label);
+            $result = $this->sync_service->list_modified_articles_paged($bucket_label, $page, $per_page);
         } else {
-            $articles = $this->sync_service->list_bucket_articles_detailed($bucket_id, $bucket_label);
+            $result = $this->sync_service->list_bucket_articles_paged($bucket_id, $bucket_label, $page, $per_page);
         }
-        if (is_wp_error($articles)) {
-            wp_send_json_error(array('message' => $articles->get_error_message()));
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
         }
 
-        wp_send_json_success(array('articles' => $articles));
+        wp_send_json_success($result);
     }
 
     public function ajax_sidebar_snapshot()
@@ -262,61 +265,41 @@ trait AutoDocs_Admin_Ajax_Trait
         }
 
         $settings = $this->settings->all();
-        $root_id = isset($settings['working_folder_id']) ? trim((string) $settings['working_folder_id']) : '';
-        $root_name = isset($settings['working_folder_name']) ? (string) $settings['working_folder_name'] : '';
         $fn = isset($settings['folder_new']) ? trim((string) $settings['folder_new']) : '';
         $fs = isset($settings['folder_synced']) ? trim((string) $settings['folder_synced']) : '';
-
-        if ($root_id !== '' && $root_name === '') {
-            $rm = $this->google_client->get_file_meta($root_id);
-            if (! is_wp_error($rm) && ! empty($rm['name'])) {
-                $root_name = (string) $rm['name'];
-            }
-        }
-
-        $name_for = function ($id) {
-            if ($id === '') {
-                return '';
-            }
-            $m = $this->google_client->get_file_meta($id);
-            return (! is_wp_error($m) && ! empty($m['name'])) ? (string) $m['name'] : '';
-        };
-
-        $count_rows = function ($bucket_id) {
-            if ($bucket_id === '') {
-                return 0;
-            }
-            $r = $this->sync_service->list_bucket_articles_detailed($bucket_id, '');
-            return is_wp_error($r) ? 0 : count($r);
-        };
 
         $email = $this->google_client->fetch_user_email();
         $email_str = is_wp_error($email) ? '' : $email;
 
-        $n = $count_rows($fn);
-        $s = $count_rows($fs);
-        $mod = $this->sync_service->count_modified_articles_in_synced_bucket();
-
-        wp_send_json_success(array(
+        $payload = array(
             'connected' => true,
             'needs_reconnect' => false,
             'email' => $email_str,
-            'root' => array('id' => $root_id, 'name' => $root_name),
-            'buckets' => array(
-                'new' => array('id' => $fn, 'name' => $fn !== '' ? $name_for($fn) : ''),
-                'synced' => array('id' => $fs, 'name' => $fs !== '' ? $name_for($fs) : ''),
-                'modified' => array(
-                    'id' => $fs,
-                    'name' => $fs !== '' ? $name_for($fs) : '',
-                    'note' => __('Same folder as Synced; counts docs with changes since last import.', 'autodocs-publisher'),
-                ),
-            ),
-            'counts' => array(
+        );
+
+        $include_counts = ! empty($_POST['include_counts']);
+        if ($include_counts) {
+            $count_bucket = function ($bucket_id) {
+                if ($bucket_id === '') {
+                    return 0;
+                }
+                $r = $this->sync_service->count_bucket_articles($bucket_id);
+
+                return is_wp_error($r) ? 0 : (int) $r;
+            };
+
+            $n = $count_bucket($fn);
+            $s = $count_bucket($fs);
+            $mod = $this->sync_service->count_modified_articles_in_synced_bucket();
+
+            $payload['counts'] = array(
                 'new' => $n,
                 'synced' => $s,
                 'modified' => $mod,
                 'total' => $n + $s,
-            ),
-        ));
+            );
+        }
+
+        wp_send_json_success($payload);
     }
 }

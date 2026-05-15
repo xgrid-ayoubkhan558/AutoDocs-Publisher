@@ -42,11 +42,31 @@ final class AutoDocs_Sync_Catalog
      */
     public function list_bucket_articles_detailed($bucket_id, $bucket_label = '')
     {
+        $paged = $this->list_bucket_articles_paged($bucket_id, $bucket_label, 1, PHP_INT_MAX);
+
+        return is_wp_error($paged) ? $paged : $paged['articles'];
+    }
+
+    /**
+     * Paginated article rows under a bucket.
+     *
+     * @return array{articles: array<int, array<string, mixed>>, total: int, page: int, per_page: int, total_pages: int}|WP_Error
+     */
+    public function list_bucket_articles_paged($bucket_id, $bucket_label, $page, $per_page)
+    {
         $bucket_id = is_string($bucket_id) ? trim($bucket_id) : '';
         if ($bucket_id === '') {
-            return array();
+            return array(
+                'articles' => array(),
+                'total' => 0,
+                'page' => 1,
+                'per_page' => max(1, (int) $per_page),
+                'total_pages' => 0,
+            );
         }
 
+        $page = max(1, (int) $page);
+        $per_page = max(1, min(50, (int) $per_page));
         $bucket_label = is_string($bucket_label) ? $bucket_label : '';
 
         $folders = $this->google_client->list_folders($bucket_id);
@@ -54,7 +74,10 @@ final class AutoDocs_Sync_Catalog
             return $folders;
         }
 
-        $rows = array();
+        $total = 0;
+        $offset = ($page - 1) * $per_page;
+        $articles = array();
+
         foreach ($folders as $fd) {
             $fid = isset($fd['id']) ? (string) $fd['id'] : '';
             if ($fid === '') {
@@ -62,84 +85,59 @@ final class AutoDocs_Sync_Catalog
             }
             $fname = isset($fd['name']) ? (string) $fd['name'] : $fid;
 
-            $files = $this->google_client->list_files_in_folder($fid);
-            if (is_wp_error($files)) {
+            $row = $this->build_article_row_for_folder($fid, $fname, $bucket_label, true);
+            if (null === $row) {
                 continue;
             }
 
-            $doc_file = null;
-            $image_file = null;
-            foreach ($files as $file) {
-                if (null === $doc_file && AutoDocs_Sync_Meta::MIME_DOC === ($file['mimeType'] ?? '')) {
-                    $doc_file = $file;
-                }
-                if (null === $image_file) {
-                    $mt = $file['mimeType'] ?? '';
-                    $is_image = in_array(
-                        $mt,
-                        array('image/jpeg', 'image/png', 'image/gif', 'image/webp'),
-                        true
-                    );
-                    $is_named = isset($file['name']) && 0 === stripos((string) $file['name'], 'featured');
-                    if ($is_image || $is_named) {
-                        $image_file = $file;
-                    }
-                }
+            ++$total;
+            if ($total > $offset && count($articles) < $per_page) {
+                $articles[] = $row;
             }
-
-            if (null === $doc_file) {
-                continue;
-            }
-
-            $thumb = '';
-            if ($image_file && ! empty($image_file['thumbnailLink'])) {
-                $thumb = (string) $image_file['thumbnailLink'];
-            } elseif (! empty($doc_file['thumbnailLink'])) {
-                $thumb = (string) $doc_file['thumbnailLink'];
-            }
-
-            $size = isset($doc_file['size']) ? (int) $doc_file['size'] : 0;
-
-            $meta_cats = '';
-            $html_export = $this->google_client->export_doc_html($doc_file['id']);
-            if (! is_wp_error($html_export) && is_string($html_export)) {
-                $parsed_row = AutoDocs_Doc_Meta::parse_and_strip($html_export);
-                $mr = $parsed_row['meta'];
-                if (! empty($mr['categories'])) {
-                    $meta_cats = (string) $mr['categories'];
-                }
-            }
-
-            $pid = $this->repository->post_id_for_folder($fid);
-            $last_wp = '';
-            $last_wp_formatted = '';
-            if ($pid) {
-                $last_wp = (string) get_post_meta($pid, AutoDocs_Sync_Meta::META_LAST_SYNCED, true);
-                if ($last_wp !== '') {
-                    $last_wp_formatted = mysql2date(
-                        get_option('date_format') . ' ' . get_option('time_format'),
-                        $last_wp
-                    );
-                }
-            }
-
-            $rows[] = array(
-                'folder_id' => $fid,
-                'folder_name' => $fname,
-                'doc_id' => $doc_file['id'] ?? '',
-                'doc_name' => isset($doc_file['name']) ? (string) $doc_file['name'] : '',
-                'modified' => isset($doc_file['modifiedTime']) ? (string) $doc_file['modifiedTime'] : '',
-                'size' => $size,
-                'web_view_link' => isset($doc_file['webViewLink']) ? (string) $doc_file['webViewLink'] : '',
-                'path_label' => trim($bucket_label . ' / ' . $fname),
-                'thumbnail_url' => $thumb,
-                'categories_display' => $meta_cats,
-                'last_synced_wp' => $last_wp,
-                'last_synced_formatted' => $last_wp_formatted,
-            );
         }
 
-        return $rows;
+        $total_pages = $total > 0 ? (int) ceil($total / $per_page) : 0;
+
+        return array(
+            'articles' => $articles,
+            'total' => $total,
+            'page' => $page,
+            'per_page' => $per_page,
+            'total_pages' => $total_pages,
+        );
+    }
+
+    /**
+     * Count article folders in a bucket (no HTML export).
+     *
+     * @return int|WP_Error
+     */
+    public function count_bucket_articles($bucket_id)
+    {
+        $bucket_id = is_string($bucket_id) ? trim($bucket_id) : '';
+        if ($bucket_id === '') {
+            return 0;
+        }
+
+        $folders = $this->google_client->list_folders($bucket_id);
+        if (is_wp_error($folders)) {
+            return $folders;
+        }
+
+        $count = 0;
+        foreach ($folders as $fd) {
+            $fid = isset($fd['id']) ? (string) $fd['id'] : '';
+            if ($fid === '') {
+                continue;
+            }
+            $fname = isset($fd['name']) ? (string) $fd['name'] : $fid;
+            $row = $this->build_article_row_for_folder($fid, $fname, '', false);
+            if (null !== $row) {
+                ++$count;
+            }
+        }
+
+        return $count;
     }
 
     /**
@@ -149,31 +147,54 @@ final class AutoDocs_Sync_Catalog
      */
     public function list_modified_articles_from_synced_bucket($bucket_label = '')
     {
+        $paged = $this->list_modified_articles_paged($bucket_label, 1, PHP_INT_MAX);
+
+        return is_wp_error($paged) ? $paged : $paged['articles'];
+    }
+
+    /**
+     * Paginated modified articles (WordPress status meta; Drive details only for current page).
+     *
+     * @return array{articles: array<int, array<string, mixed>>, total: int, page: int, per_page: int, total_pages: int}|WP_Error
+     */
+    public function list_modified_articles_paged($bucket_label, $page, $per_page)
+    {
         $synced = (string) $this->settings->get('folder_synced', '');
         if ($synced === '') {
-            return array();
+            return array(
+                'articles' => array(),
+                'total' => 0,
+                'page' => 1,
+                'per_page' => max(1, (int) $per_page),
+                'total_pages' => 0,
+            );
         }
 
-        $this->status->refresh_statuses_for_working_folder($synced, false);
+        $page = max(1, (int) $page);
+        $per_page = max(1, min(50, (int) $per_page));
+        $bucket_label = is_string($bucket_label) ? $bucket_label : '';
 
-        $rows = $this->list_bucket_articles_detailed($synced, $bucket_label);
-        if (is_wp_error($rows)) {
-            return $rows;
-        }
+        $total = $this->repository->count_posts_by_sync_status('modified');
+        $offset = ($page - 1) * $per_page;
+        $folder_ids = $this->repository->folder_ids_by_sync_status('modified', $per_page, $offset);
 
-        $out = array();
-        foreach ($rows as $row) {
-            $pid = $this->repository->post_id_for_folder(isset($row['folder_id']) ? (string) $row['folder_id'] : '');
-            if (! $pid) {
-                continue;
+        $articles = array();
+        foreach ($folder_ids as $fid) {
+            $row = $this->build_article_row_for_folder($fid, '', $bucket_label, true);
+            if (null !== $row) {
+                $articles[] = $row;
             }
-            $st = (string) get_post_meta($pid, AutoDocs_Sync_Meta::META_STATUS, true);
-            if ($st === 'modified') {
-                $out[] = $row;
-            }
         }
 
-        return $out;
+        $total_pages = $total > 0 ? (int) ceil($total / $per_page) : 0;
+
+        return array(
+            'articles' => $articles,
+            'total' => $total,
+            'page' => $page,
+            'per_page' => $per_page,
+            'total_pages' => $total_pages,
+        );
     }
 
     /**
@@ -181,8 +202,103 @@ final class AutoDocs_Sync_Catalog
      */
     public function count_modified_articles_in_synced_bucket()
     {
-        $r = $this->list_modified_articles_from_synced_bucket('');
+        return $this->repository->count_posts_by_sync_status('modified');
+    }
 
-        return is_wp_error($r) ? 0 : count($r);
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function build_article_row_for_folder($folder_id, $folder_name, $bucket_label, $include_doc_meta)
+    {
+        $folder_id = is_string($folder_id) ? trim($folder_id) : '';
+        if ($folder_id === '') {
+            return null;
+        }
+
+        $files = $this->google_client->list_files_in_folder($folder_id);
+        if (is_wp_error($files)) {
+            return null;
+        }
+
+        $doc_file = null;
+        $image_file = null;
+        foreach ($files as $file) {
+            if (null === $doc_file && AutoDocs_Sync_Meta::MIME_DOC === ($file['mimeType'] ?? '')) {
+                $doc_file = $file;
+            }
+            if (null === $image_file) {
+                $mt = $file['mimeType'] ?? '';
+                $is_image = in_array(
+                    $mt,
+                    array('image/jpeg', 'image/png', 'image/gif', 'image/webp'),
+                    true
+                );
+                $is_named = isset($file['name']) && 0 === stripos((string) $file['name'], 'featured');
+                if ($is_image || $is_named) {
+                    $image_file = $file;
+                }
+            }
+        }
+
+        if (null === $doc_file) {
+            return null;
+        }
+
+        $fname = $folder_name !== '' ? $folder_name : $folder_id;
+        if ($fname === $folder_id) {
+            $meta = $this->google_client->get_file_meta($folder_id);
+            if (! is_wp_error($meta) && ! empty($meta['name'])) {
+                $fname = (string) $meta['name'];
+            }
+        }
+
+        $thumb = '';
+        if ($image_file && ! empty($image_file['thumbnailLink'])) {
+            $thumb = (string) $image_file['thumbnailLink'];
+        } elseif (! empty($doc_file['thumbnailLink'])) {
+            $thumb = (string) $doc_file['thumbnailLink'];
+        }
+
+        $size = isset($doc_file['size']) ? (int) $doc_file['size'] : 0;
+        $meta_cats = '';
+
+        if ($include_doc_meta) {
+            $html_export = $this->google_client->export_doc_html($doc_file['id']);
+            if (! is_wp_error($html_export) && is_string($html_export)) {
+                $parsed_row = AutoDocs_Doc_Meta::parse_and_strip($html_export);
+                $mr = $parsed_row['meta'];
+                if (! empty($mr['categories'])) {
+                    $meta_cats = (string) $mr['categories'];
+                }
+            }
+        }
+
+        $pid = $this->repository->post_id_for_folder($folder_id);
+        $last_wp = '';
+        $last_wp_formatted = '';
+        if ($pid) {
+            $last_wp = (string) get_post_meta($pid, AutoDocs_Sync_Meta::META_LAST_SYNCED, true);
+            if ($last_wp !== '') {
+                $last_wp_formatted = mysql2date(
+                    get_option('date_format') . ' ' . get_option('time_format'),
+                    $last_wp
+                );
+            }
+        }
+
+        return array(
+            'folder_id' => $folder_id,
+            'folder_name' => $fname,
+            'doc_id' => $doc_file['id'] ?? '',
+            'doc_name' => isset($doc_file['name']) ? (string) $doc_file['name'] : '',
+            'modified' => isset($doc_file['modifiedTime']) ? (string) $doc_file['modifiedTime'] : '',
+            'size' => $size,
+            'web_view_link' => isset($doc_file['webViewLink']) ? (string) $doc_file['webViewLink'] : '',
+            'path_label' => trim($bucket_label . ' / ' . $fname),
+            'thumbnail_url' => $thumb,
+            'categories_display' => $meta_cats,
+            'last_synced_wp' => $last_wp,
+            'last_synced_formatted' => $last_wp_formatted,
+        );
     }
 }

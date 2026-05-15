@@ -398,29 +398,116 @@
    Layout: primary + sidebar (BEM: autodocs-settings__)
    ------------------------------------------------------------------------- */
 
-.autodocs-settings__layout {
-    align-items: start;
+.autodocs-settings__header {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px 24px;
+    justify-content: space-between;
+    margin: 0 0 12px;
+    max-width: 1280px;
+}
+
+.autodocs-settings__title {
+    margin: 0;
+    padding: 0;
+}
+
+.autodocs-settings__connection {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 20px;
+}
+
+.autodocs-settings__connection-status {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.autodocs-settings__connection-meta {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 20px;
+}
+
+.autodocs-settings__connection-item {
+    align-items: baseline;
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.autodocs-settings__connection-label {
+    color: #646970;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.autodocs-settings__connection-value {
+    color: #1d2327;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.autodocs-sync-summary {
+    background: #f6f7f7;
+    border: 1px solid #dcdcde;
+    border-radius: 6px;
+    margin: 0 0 16px;
+    max-width: 900px;
+    padding: 14px 16px;
+}
+
+.autodocs-sync-summary__title {
+    font-size: 13px;
+    font-weight: 600;
+    margin: 0 0 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.autodocs-sync-summary__stats {
     display: grid;
-    gap: 24px;
-    grid-template-columns: minmax(0, 1fr) minmax(260px, 300px);
+    gap: 12px 20px;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    margin: 0;
+}
+
+.autodocs-sync-summary__stat {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: space-between;
+    margin: 0;
+}
+
+.autodocs-sync-summary__stat dt {
+    color: #646970;
+    font-size: 13px;
+    font-weight: 500;
+    margin: 0;
+}
+
+.autodocs-sync-summary__stat dd {
+    margin: 0;
+}
+
+.autodocs-sync-summary__stat--total {
+    border-top: 1px solid #dcdcde;
+    grid-column: 1 / -1;
+    padding-top: 12px;
+}
+
+.autodocs-settings__layout {
     margin-top: 8px;
     max-width: 1280px;
 }
 
-.autodocs-settings__layout > .autodocs-settings__primary {
-    grid-column: 1;
-    min-width: 0;
-}
-
 .autodocs-settings__form {
     min-width: 0;
-}
-
-.autodocs-settings__layout > .autodocs-settings__aside {
-    grid-column: 2;
-    max-width: 100%;
-    min-width: 0;
-    width: 100%;
 }
 
 .autodocs-sidebar__card {
@@ -473,27 +560,18 @@
     text-align: right;
 }
 
-.autodocs-sidebar__folder-tree {
-    list-style: none;
-    margin: 0;
-    padding: 0;
+.autodocs-articles-pagination {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: space-between;
+    margin-top: 12px;
 }
 
-.autodocs-sidebar__folder-root {
-    font-weight: 600;
-    margin: 0 0 6px;
-}
-
-.autodocs-sidebar__folder-sub {
+.autodocs-articles-pagination__info {
     color: #50575e;
-    font-size: 12px;
-    margin: 4px 0 4px 10px;
-}
-
-.autodocs-sidebar__folder-placeholder {
-    color: #646970;
-    font-size: 12px;
-    margin: 0;
+    font-size: 13px;
 }
 
 /* Drive root card */
@@ -737,15 +815,9 @@
 }
 
 @media screen and (max-width: 960px) {
-    .autodocs-settings__layout {
-        grid-template-columns: 1fr;
-    }
-
-    .autodocs-settings__layout > .autodocs-settings__primary,
-    .autodocs-settings__layout > .autodocs-settings__aside {
-        grid-column: 1;
-        max-width: none;
-        width: 100%;
+    .autodocs-settings__header {
+        align-items: flex-start;
+        flex-direction: column;
     }
 
     .autodocs-articles-shell__aside {

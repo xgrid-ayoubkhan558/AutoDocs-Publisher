@@ -3,7 +3,7 @@
 
     var A = (w.AutoDocsAdmin = w.AutoDocsAdmin || {});
 
-    A.refreshDashboardSidebar = function () {
+    A.refreshDashboardSidebar = function (includeCounts) {
         if (typeof AutoDocsDashboard === 'undefined' || !AutoDocsDashboard.ajaxUrl) {
             return;
         }
@@ -11,10 +11,14 @@
         function t(k, fb) {
             return dbi[k] || fb;
         }
-        A.postFormUrlEncoded(AutoDocsDashboard.ajaxUrl, {
+        var payload = {
             action: 'autodocs_sidebar_snapshot',
             nonce: AutoDocsDashboard.nonce
-        }).then(function (res) {
+        };
+        if (includeCounts) {
+            payload.include_counts = '1';
+        }
+        A.postFormUrlEncoded(AutoDocsDashboard.ajaxUrl, payload).then(function (res) {
             if (!res || !res.success || !res.data) {
                 return;
             }
@@ -34,13 +38,6 @@
                 var emailEl = A.qs('#autodocs-sidebar-email');
                 if (emailEl) {
                     emailEl.textContent = '—';
-                }
-                var foldersUl = A.qs('#autodocs-sidebar-folders');
-                if (foldersUl) {
-                    foldersUl.innerHTML =
-                        '<li class="autodocs-sidebar__folder-placeholder">' +
-                        t('setDriveRootFirst', 'Set a Drive root folder on the Drive & folders tab.') +
-                        '</li>';
                 }
                 return;
             }
@@ -68,37 +65,7 @@
             if (lastSyncEl) {
                 lastSyncEl.textContent = d.last_sync_formatted || '—';
             }
-            var ul = A.qs('#autodocs-sidebar-folders');
-            if (ul) {
-                ul.innerHTML = '';
-            }
-            if (d.root && d.root.id && ul) {
-                ul.appendChild(
-                    A.el('li', { class: 'autodocs-sidebar__folder-root', text: d.root.name || d.root.id })
-                );
-                if (d.buckets) {
-                    ['new', 'synced', 'modified'].forEach(function (key) {
-                        var b = d.buckets[key];
-                        if (b && b.id) {
-                            var label = key.charAt(0).toUpperCase() + key.slice(1);
-                            var bn = b.name || b.id;
-                            var line = label + ': ' + bn;
-                            if (key === 'modified' && b.note) {
-                                line += ' — ' + b.note;
-                            }
-                            ul.appendChild(A.el('li', { class: 'autodocs-sidebar__folder-sub', text: line }));
-                        }
-                    });
-                }
-            } else if (ul) {
-                ul.appendChild(
-                    A.el('li', {
-                        class: 'autodocs-sidebar__folder-placeholder',
-                        text: t('setDriveRootFirst', 'Set a Drive root folder on the Drive & folders tab.')
-                    })
-                );
-            }
-            if (d.counts) {
+            if (includeCounts && d.counts) {
                 A.qsa('[data-autodocs-count="new"]').forEach(function (node) {
                     node.textContent = d.counts.new != null ? String(d.counts.new) : '—';
                 });

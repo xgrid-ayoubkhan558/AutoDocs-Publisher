@@ -17,6 +17,7 @@ final class AutoDocs_Admin_Localization
         return array(
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('autodocs_sync_now'),
+            'articlesPerPage' => 20,
             'importNonce' => wp_create_nonce('autodocs_import'),
             'oauthNonce' => wp_create_nonce('autodocs_google_oauth'),
             'redirectUri' => $settings->redirect_uri(),
@@ -81,6 +82,10 @@ final class AutoDocs_Admin_Localization
                 'docCategoriesFromMeta' => __('From document (will be applied on save)', 'autodocs-publisher'),
                 'docTagsFromMeta' => __('From document (will be applied on save)', 'autodocs-publisher'),
                 'docMetaListEmpty' => __('None listed in document meta for this field.', 'autodocs-publisher'),
+                'articlesPagination' => __('Article list pages', 'autodocs-publisher'),
+                'prevPage' => __('Previous', 'autodocs-publisher'),
+                'nextPage' => __('Next', 'autodocs-publisher'),
+                'pageOf' => __('Page %1$s of %2$s (%3$s articles)', 'autodocs-publisher'),
             ),
         );
     }

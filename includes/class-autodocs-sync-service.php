@@ -107,6 +107,30 @@ class AutoDocs_Sync_Service
         return $this->catalog->count_modified_articles_in_synced_bucket();
     }
 
+    /**
+     * @return int|WP_Error
+     */
+    public function count_bucket_articles($bucket_id)
+    {
+        return $this->catalog->count_bucket_articles($bucket_id);
+    }
+
+    /**
+     * @return array{articles: array<int, array<string, mixed>>, total: int, page: int, per_page: int, total_pages: int}|WP_Error
+     */
+    public function list_bucket_articles_paged($bucket_id, $bucket_label, $page, $per_page)
+    {
+        return $this->catalog->list_bucket_articles_paged($bucket_id, $bucket_label, $page, $per_page);
+    }
+
+    /**
+     * @return array{articles: array<int, array<string, mixed>>, total: int, page: int, per_page: int, total_pages: int}|WP_Error
+     */
+    public function list_modified_articles_paged($bucket_label, $page, $per_page)
+    {
+        return $this->catalog->list_modified_articles_paged($bucket_label, $page, $per_page);
+    }
+
     public function sanitize_google_html($html)
     {
         return $this->media->sanitize_google_html($html);

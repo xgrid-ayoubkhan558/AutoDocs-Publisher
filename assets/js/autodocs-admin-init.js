@@ -9,7 +9,7 @@
         var drivePicker = A.createDrivePicker();
 
         w.autodocsBucketUiRefreshArticles = function () {
-            bucketUi.refreshAllArticlePanels();
+            bucketUi.refreshActiveArticlePanel(1);
         };
 
         if (settingsWrap) {
@@ -36,8 +36,11 @@
                 if (panel) {
                     panel.classList.add('is-active');
                 }
-                if (tab === 'articles' && A.articleListsBootstrapped) {
-                    bucketUi.refreshAllArticlePanels();
+                if (tab === 'articles') {
+                    A.refreshDashboardSidebar(true);
+                    if (A.articleListsBootstrapped) {
+                        bucketUi.refreshActiveArticlePanel();
+                    }
                 }
             });
         }
@@ -76,7 +79,7 @@
                             ', Missing: ' +
                             data.missing;
                     }
-                    A.refreshDashboardSidebar();
+                    A.refreshDashboardSidebar(true);
                 })
                 .catch(function () {
                     if (resultEl) {
@@ -113,7 +116,7 @@
                             action: 'autodocs_refresh_statuses',
                             nonce: AutoDocsPublisher.nonce
                         }).then(function () {
-                            A.refreshDashboardSidebar();
+                            A.refreshDashboardSidebar(true);
                         });
                     }
                     var msg =
@@ -175,8 +178,22 @@
                     return k.key === sub;
                 })[0];
                 if (row) {
-                    bucketUi.refreshArticlePanel(row.panel, bucketUi.folderIdForArticleKey(row.key), row.key, row.listMode || '');
+                    bucketUi.panelPages[sub] = 1;
+                    bucketUi.refreshArticlePanel(row.panel, bucketUi.folderIdForArticleKey(row.key), row.key, row.listMode || '', 1);
                 }
+            });
+
+            A.on(settingsWrap, 'click', '.autodocs-articles-pagination__prev, .autodocs-articles-pagination__next', function (e, btn) {
+                e.preventDefault();
+                if (btn.disabled) {
+                    return;
+                }
+                var bucketKey = btn.getAttribute('data-autodocs-article-bucket');
+                var page = parseInt(btn.getAttribute('data-autodocs-article-page'), 10);
+                if (!bucketKey || !page || page < 1) {
+                    return;
+                }
+                bucketUi.refreshArticlePanelForKey(bucketKey, page);
             });
 
             A.on(settingsWrap, 'click', '.autodocs-bucket-card__change', function (e, btn) {
@@ -321,7 +338,7 @@
                         if (typeof w.autodocsBucketUiRefreshArticles === 'function') {
                             w.autodocsBucketUiRefreshArticles();
                         }
-                        A.refreshDashboardSidebar();
+                        A.refreshDashboardSidebar(true);
                     })
                     .catch(function () {
                         panel.insertBefore(
@@ -363,23 +380,34 @@
             var refreshBtn = A.qs('#autodocs-refresh-article-lists');
             if (refreshBtn) {
                 refreshBtn.addEventListener('click', function () {
-                    bucketUi.refreshAllArticlePanels();
-                    A.refreshDashboardSidebar();
+                    bucketUi.panelPages = { new: 1, synced: 1, modified: 1 };
+                    bucketUi.refreshActiveArticlePanel(1);
+                    A.refreshDashboardSidebar(true);
                 });
             }
 
             if (settingsWrap) {
                 settingsWrap.addEventListener('change', function (e) {
-                    if (e.target.closest('.autodocs-bucket-select')) {
-                        bucketUi.refreshAllArticlePanels();
-                        A.refreshDashboardSidebar();
+                    var sel = e.target.closest('.autodocs-bucket-select');
+                    if (!sel) {
+                        return;
+                    }
+                    var key = sel.id === 'autodocs-bucket-new' ? 'new' : sel.id === 'autodocs-bucket-synced' ? 'synced' : '';
+                    if (key) {
+                        bucketUi.refreshArticlePanelForKey(key, 1);
+                        if (key === 'synced') {
+                            bucketUi.refreshArticlePanelForKey('modified', 1);
+                        }
                     }
                 });
             }
 
             bucketUi.loadRootChildren();
             A.loadDriveRootMetaIfNeeded();
-            A.refreshDashboardSidebar();
+            A.refreshDashboardSidebar(false);
+            if (A.qs('#autodocs-tab-panel-articles.is-active')) {
+                A.refreshDashboardSidebar(true);
+            }
         }
     });
 })(window);

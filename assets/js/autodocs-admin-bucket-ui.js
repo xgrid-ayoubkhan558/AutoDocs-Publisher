@@ -4,8 +4,18 @@
     var A = (w.AutoDocsAdmin = w.AutoDocsAdmin || {});
 
     A.createBucketUi = function () {
+        var perPage =
+            typeof AutoDocsPublisher !== 'undefined' && AutoDocsPublisher.articlesPerPage
+                ? parseInt(AutoDocsPublisher.articlesPerPage, 10)
+                : 20;
+        if (!perPage || perPage < 1) {
+            perPage = 20;
+        }
+
         var bucketUi = {
             i18n: typeof AutoDocsPublisher !== 'undefined' && AutoDocsPublisher.i18n ? AutoDocsPublisher.i18n : {},
+            perPage: perPage,
+            panelPages: { new: 1, synced: 1, modified: 1 },
             bucketSelectSelectors: ['#autodocs-bucket-new', '#autodocs-bucket-synced'],
             articlePanelRows: [
                 { key: 'new', panel: A.qs('#autodocs-article-list-new') },
@@ -61,6 +71,7 @@
                         row.panel.innerHTML = '';
                     }
                 });
+                this.panelPages = { new: 1, synced: 1, modified: 1 };
             },
 
             fillBucketSelectsFromFolders: function (folders) {
@@ -89,6 +100,21 @@
                     }
                     s.value = pick;
                 });
+            },
+
+            activeArticleKey: function () {
+                var tab = A.qs('.autodocs-articles-subtabs__tab.is-active[data-autodocs-article-sub]');
+                return tab ? tab.getAttribute('data-autodocs-article-sub') || 'new' : 'new';
+            },
+
+            rowForKey: function (key) {
+                var found = null;
+                this.articlePanelRows.forEach(function (row) {
+                    if (row.key === key) {
+                        found = row;
+                    }
+                });
+                return found;
             },
 
             loadRootChildren: function () {
@@ -138,7 +164,7 @@
                         ui.fillBucketSelectsFromFolders(folders);
                         if (!A.articleListsBootstrapped) {
                             A.articleListsBootstrapped = true;
-                            ui.refreshAllArticlePanels();
+                            ui.refreshActiveArticlePanel();
                         }
                     })
                     .catch(function () {
@@ -148,9 +174,138 @@
                     });
             },
 
-            refreshArticlePanel: function (panel, folderId, bucketKey, listMode) {
+            renderPagination: function (panel, bucketKey, page, totalPages, total) {
+                if (totalPages <= 1) {
+                    return;
+                }
+                var ui = this;
+                var nav = A.el('nav', {
+                    class: 'autodocs-articles-pagination',
+                    role: 'navigation',
+                    'aria-label': ui.t('articlesPagination', 'Article list pages')
+                });
+                var info = A.el('span', {
+                    class: 'autodocs-articles-pagination__info',
+                    text: ui
+                        .t('pageOf', 'Page %1$s of %2$s (%3$s articles)')
+                        .replace('%1$s', String(page))
+                        .replace('%2$s', String(totalPages))
+                        .replace('%3$s', String(total))
+                });
+                var prev = A.el('button', {
+                    type: 'button',
+                    class: 'button autodocs-articles-pagination__prev',
+                    text: ui.t('prevPage', 'Previous')
+                });
+                prev.disabled = page <= 1;
+                prev.setAttribute('data-autodocs-article-page', String(page - 1));
+                prev.setAttribute('data-autodocs-article-bucket', bucketKey);
+                var next = A.el('button', {
+                    type: 'button',
+                    class: 'button autodocs-articles-pagination__next',
+                    text: ui.t('nextPage', 'Next')
+                });
+                next.disabled = page >= totalPages;
+                next.setAttribute('data-autodocs-article-page', String(page + 1));
+                next.setAttribute('data-autodocs-article-bucket', bucketKey);
+                nav.appendChild(prev);
+                nav.appendChild(info);
+                nav.appendChild(next);
+                panel.appendChild(nav);
+            },
+
+            renderArticlesTable: function (panel, articles, bucketKey, listMode) {
                 var ui = this;
                 listMode = listMode || '';
+
+                panel.appendChild(
+                    A.el('p', {
+                        class: 'description',
+                        text: ui.t(
+                            'articleFoldersHint',
+                            'Subfolders here are treated as articles (each should contain a Google Doc and optional featured image).'
+                        )
+                    })
+                );
+
+                var table = A.el('table', { class: 'widefat striped autodocs-articles-table' });
+                var trh = A.el('tr');
+                ['article', 'categoryColumn', 'lastSynced', 'lastModified', 'size', 'actions'].forEach(function (colKey) {
+                    var labels = {
+                        article: ui.t('article', 'Article'),
+                        categoryColumn: ui.t('categoryColumn', 'Categories (from doc)'),
+                        lastSynced: ui.t('lastSynced', 'Last synced'),
+                        lastModified: ui.t('lastModified', 'Doc modified'),
+                        size: ui.t('size', 'Size'),
+                        actions: ui.t('actions', 'Actions')
+                    };
+                    trh.appendChild(A.el('th', { scope: 'col', text: labels[colKey] }));
+                });
+                table.appendChild(A.el('thead', null, [trh]));
+
+                var tb = A.el('tbody');
+                articles.forEach(function (a) {
+                    var tr = A.el('tr', { class: 'autodocs-articles-table__row' });
+                    var artTd = A.el('td', { class: 'autodocs-articles-table__td-article' });
+                    if (a.thumbnail_url) {
+                        artTd.appendChild(
+                            A.el('img', {
+                                class: 'autodocs-articles-table__thumb',
+                                alt: '',
+                                width: '40',
+                                height: '40',
+                                src: a.thumbnail_url
+                            })
+                        );
+                    }
+                    var stack = A.el('div', { class: 'autodocs-articles-table__article-stack' });
+                    stack.appendChild(A.el('div', { class: 'autodocs-articles-table__doc-name', text: a.doc_name || '—' }));
+                    stack.appendChild(A.el('div', { class: 'autodocs-articles-table__folder-name', text: a.folder_name || '' }));
+                    artTd.appendChild(stack);
+                    tr.appendChild(artTd);
+                    tr.appendChild(A.el('td', { text: a.categories_display || '—' }));
+                    var syncLabel = a.last_synced_formatted || '';
+                    if (!syncLabel && a.modified) {
+                        syncLabel = A.formatIsoDate(a.modified);
+                    }
+                    tr.appendChild(A.el('td', { text: syncLabel || '—' }));
+                    tr.appendChild(A.el('td', { text: A.formatIsoDate(a.modified) }));
+                    tr.appendChild(A.el('td', { text: A.formatBytes(a.size) }));
+                    var actTd = A.el('td', { class: 'autodocs-articles-table__td-actions' });
+                    if (a.web_view_link) {
+                        actTd.appendChild(
+                            A.el('a', {
+                                class: 'button button-small',
+                                target: '_blank',
+                                rel: 'noopener noreferrer',
+                                href: a.web_view_link,
+                                text: ui.t('openInDrive', 'Open in Drive')
+                            })
+                        );
+                        actTd.appendChild(document.createTextNode(' '));
+                    }
+                    var imp = A.el('button', {
+                        type: 'button',
+                        class: 'button button-small button-primary autodocs-article-import',
+                        text: ui.t('import', 'Import')
+                    });
+                    var importBucketKey = listMode === 'modified' || bucketKey === 'modified' ? 'synced' : bucketKey;
+                    imp.setAttribute('data-folder-id', a.folder_id || '');
+                    imp.setAttribute('data-bucket-key', importBucketKey);
+                    actTd.appendChild(imp);
+                    tr.appendChild(actTd);
+                    tb.appendChild(tr);
+                });
+                table.appendChild(tb);
+                panel.appendChild(table);
+            },
+
+            refreshArticlePanel: function (panel, folderId, bucketKey, listMode, page) {
+                var ui = this;
+                listMode = listMode || '';
+                page = page || ui.panelPages[bucketKey] || 1;
+                ui.panelPages[bucketKey] = page;
+
                 if (!panel) {
                     return;
                 }
@@ -179,7 +334,9 @@
                     action: 'autodocs_list_bucket_articles',
                     nonce: AutoDocsPublisher.nonce,
                     bucket_id: folderId,
-                    bucket_label: bucketLabel
+                    bucket_label: bucketLabel,
+                    page: page,
+                    per_page: ui.perPage
                 };
                 if (listMode === 'modified') {
                     postData.list_mode = 'modified';
@@ -196,7 +353,12 @@
                             panel.appendChild(A.el('p', { class: 'description', text: err }));
                             return;
                         }
-                        var articles = response.data && response.data.articles ? response.data.articles : [];
+                        var data = response.data || {};
+                        var articles = data.articles ? data.articles : [];
+                        var total = data.total != null ? parseInt(data.total, 10) : articles.length;
+                        var totalPages = data.total_pages != null ? parseInt(data.total_pages, 10) : 1;
+                        var currentPage = data.page != null ? parseInt(data.page, 10) : page;
+
                         if (!articles.length) {
                             panel.appendChild(
                                 A.el('p', {
@@ -207,86 +369,8 @@
                             return;
                         }
 
-                        panel.appendChild(
-                            A.el('p', {
-                                class: 'description',
-                                text: ui.t(
-                                    'articleFoldersHint',
-                                    'Subfolders here are treated as articles (each should contain a Google Doc and optional featured image).'
-                                )
-                            })
-                        );
-
-                        var table = A.el('table', { class: 'widefat striped autodocs-articles-table' });
-                        var trh = A.el('tr');
-                        ['article', 'categoryColumn', 'lastSynced', 'lastModified', 'size', 'actions'].forEach(function (colKey) {
-                            var labels = {
-                                article: ui.t('article', 'Article'),
-                                categoryColumn: ui.t('categoryColumn', 'Categories (from doc)'),
-                                lastSynced: ui.t('lastSynced', 'Last synced'),
-                                lastModified: ui.t('lastModified', 'Doc modified'),
-                                size: ui.t('size', 'Size'),
-                                actions: ui.t('actions', 'Actions')
-                            };
-                            trh.appendChild(A.el('th', { scope: 'col', text: labels[colKey] }));
-                        });
-                        table.appendChild(A.el('thead', null, [trh]));
-
-                        var tb = A.el('tbody');
-                        articles.forEach(function (a) {
-                            var tr = A.el('tr', { class: 'autodocs-articles-table__row' });
-                            var artTd = A.el('td', { class: 'autodocs-articles-table__td-article' });
-                            if (a.thumbnail_url) {
-                                artTd.appendChild(
-                                    A.el('img', {
-                                        class: 'autodocs-articles-table__thumb',
-                                        alt: '',
-                                        width: '40',
-                                        height: '40',
-                                        src: a.thumbnail_url
-                                    })
-                                );
-                            }
-                            var stack = A.el('div', { class: 'autodocs-articles-table__article-stack' });
-                            stack.appendChild(A.el('div', { class: 'autodocs-articles-table__doc-name', text: a.doc_name || '—' }));
-                            stack.appendChild(A.el('div', { class: 'autodocs-articles-table__folder-name', text: a.folder_name || '' }));
-                            artTd.appendChild(stack);
-                            tr.appendChild(artTd);
-                            tr.appendChild(A.el('td', { text: a.categories_display || '—' }));
-                            var syncLabel = a.last_synced_formatted || '';
-                            if (!syncLabel && a.modified) {
-                                syncLabel = A.formatIsoDate(a.modified);
-                            }
-                            tr.appendChild(A.el('td', { text: syncLabel || '—' }));
-                            tr.appendChild(A.el('td', { text: A.formatIsoDate(a.modified) }));
-                            tr.appendChild(A.el('td', { text: A.formatBytes(a.size) }));
-                            var actTd = A.el('td', { class: 'autodocs-articles-table__td-actions' });
-                            if (a.web_view_link) {
-                                actTd.appendChild(
-                                    A.el('a', {
-                                        class: 'button button-small',
-                                        target: '_blank',
-                                        rel: 'noopener noreferrer',
-                                        href: a.web_view_link,
-                                        text: ui.t('openInDrive', 'Open in Drive')
-                                    })
-                                );
-                                actTd.appendChild(document.createTextNode(' '));
-                            }
-                            var imp = A.el('button', {
-                                type: 'button',
-                                class: 'button button-small button-primary autodocs-article-import',
-                                text: ui.t('import', 'Import')
-                            });
-                            var importBucketKey = listMode === 'modified' || bucketKey === 'modified' ? 'synced' : bucketKey;
-                            imp.setAttribute('data-folder-id', a.folder_id || '');
-                            imp.setAttribute('data-bucket-key', importBucketKey);
-                            actTd.appendChild(imp);
-                            tr.appendChild(actTd);
-                            tb.appendChild(tr);
-                        });
-                        table.appendChild(tb);
-                        panel.appendChild(table);
+                        ui.renderArticlesTable(panel, articles, bucketKey, listMode);
+                        ui.renderPagination(panel, bucketKey, currentPage, totalPages, total);
                     })
                     .catch(function () {
                         panel.innerHTML = '';
@@ -294,12 +378,37 @@
                     });
             },
 
+            refreshActiveArticlePanel: function (page) {
+                var key = this.activeArticleKey();
+                var row = this.rowForKey(key);
+                if (!row || !row.panel) {
+                    return;
+                }
+                var p = page != null ? page : this.panelPages[key] || 1;
+                this.refreshArticlePanel(row.panel, this.folderIdForArticleKey(row.key), row.key, row.listMode || '', p);
+            },
+
+            refreshArticlePanelForKey: function (key, page) {
+                var row = this.rowForKey(key);
+                if (!row || !row.panel) {
+                    return;
+                }
+                if (page != null) {
+                    this.panelPages[key] = page;
+                } else {
+                    this.panelPages[key] = 1;
+                }
+                this.refreshArticlePanel(
+                    row.panel,
+                    this.folderIdForArticleKey(row.key),
+                    row.key,
+                    row.listMode || '',
+                    this.panelPages[key]
+                );
+            },
+
             refreshAllArticlePanels: function () {
-                var ui = this;
-                this.articlePanelRows.forEach(function (row) {
-                    var id = ui.folderIdForArticleKey(row.key);
-                    ui.refreshArticlePanel(row.panel, id, row.key, row.listMode || '');
-                });
+                this.refreshActiveArticlePanel();
             }
         };
         return bucketUi;

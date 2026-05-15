@@ -62,4 +62,69 @@ final class AutoDocs_Sync_Repository
 
         return $count;
     }
+
+    /**
+     * @param string $status
+     * @return int
+     */
+    public function count_posts_by_sync_status($status)
+    {
+        $status = is_string($status) ? trim($status) : '';
+        if ($status === '') {
+            return 0;
+        }
+
+        $q = new WP_Query(
+            array(
+                'post_type' => 'any',
+                'post_status' => array('publish', 'draft', 'pending', 'private', 'future'),
+                'meta_key' => AutoDocs_Sync_Meta::META_STATUS,
+                'meta_value' => $status,
+                'fields' => 'ids',
+                'posts_per_page' => 1,
+                'no_found_rows' => false,
+            )
+        );
+
+        return (int) $q->found_posts;
+    }
+
+    /**
+     * @param string $status
+     * @param int    $limit  Max IDs to return; -1 for all.
+     * @param int    $offset
+     * @return list<string>
+     */
+    public function folder_ids_by_sync_status($status, $limit = -1, $offset = 0)
+    {
+        $status = is_string($status) ? trim($status) : '';
+        if ($status === '') {
+            return array();
+        }
+
+        $per_page = $limit > 0 ? $limit : -1;
+        $posts = get_posts(
+            array(
+                'post_type' => 'any',
+                'post_status' => array('publish', 'draft', 'pending', 'private', 'future'),
+                'meta_key' => AutoDocs_Sync_Meta::META_STATUS,
+                'meta_value' => $status,
+                'fields' => 'ids',
+                'posts_per_page' => $per_page,
+                'offset' => max(0, (int) $offset),
+                'orderby' => 'ID',
+                'order' => 'DESC',
+            )
+        );
+
+        $ids = array();
+        foreach ($posts as $post_id) {
+            $fid = get_post_meta((int) $post_id, AutoDocs_Sync_Meta::META_FOLDER_ID, true);
+            if (is_string($fid) && $fid !== '') {
+                $ids[] = $fid;
+            }
+        }
+
+        return $ids;
+    }
 }

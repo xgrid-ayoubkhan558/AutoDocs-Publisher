@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * Settings screen markup. Expects variables from AutoDocs_Admin::render_settings_page().
  *
@@ -24,7 +24,22 @@ if (!defined('ABSPATH')) {
 }
 ?>
         <div class="wrap autodocs-settings">
-            <h1><?php esc_html_e('AutoDocs Publisher', 'autodocs-publisher'); ?></h1>
+            <div class="autodocs-settings__header">
+                <h1 class="autodocs-settings__title"><?php esc_html_e('AutoDocs Publisher', 'autodocs-publisher'); ?></h1>
+                <div class="autodocs-settings__connection" aria-label="<?php esc_attr_e('Connection status', 'autodocs-publisher'); ?>">
+                    <span id="autodocs-sidebar-status" class="autodocs-settings__connection-status<?php echo $connected ? ' autodocs-sidebar__pill autodocs-sidebar__pill--ok' : ''; ?>"><?php echo $connected ? esc_html__('Connected', 'autodocs-publisher') : esc_html__('Not connected', 'autodocs-publisher'); ?></span>
+                    <span class="autodocs-settings__connection-meta">
+                        <span class="autodocs-settings__connection-item">
+                            <span class="autodocs-settings__connection-label"><?php esc_html_e('Account', 'autodocs-publisher'); ?></span>
+                            <span id="autodocs-sidebar-email" class="autodocs-settings__connection-value">&mdash;</span>
+                        </span>
+                        <span class="autodocs-settings__connection-item">
+                            <span class="autodocs-settings__connection-label"><?php esc_html_e('Last synced', 'autodocs-publisher'); ?></span>
+                            <span id="autodocs-sidebar-last-sync" class="autodocs-settings__connection-value">&mdash;</span>
+                        </span>
+                    </span>
+                </div>
+            </div>
             <?php $this->notice_reconnect_scopes(); ?>
             <?php $this->notice(); ?>
 
@@ -45,6 +60,27 @@ if (!defined('ABSPATH')) {
 
                     <div id="autodocs-tab-panel-articles" class="autodocs-tab-panel autodocs-tab-panel--articles<?php echo 'articles' === $current_tab ? ' is-active' : ''; ?>" role="tabpanel" aria-labelledby="autodocs-tabbtn-articles" tabindex="0">
                         <p class="autodocs-tab-panel__intro description"><?php esc_html_e('Use the New and Synced tabs to browse Drive article folders. The Modified tab lists items in your Synced bucket whose Google Doc changed since the last WordPress import (run “Check Statuses” or Sync to refresh detection). Optional document meta lives between [META START] and [META END] in each Google Doc.', 'autodocs-publisher'); ?></p>
+                        <div class="autodocs-sync-summary" id="autodocs-sync-summary">
+                            <h3 class="autodocs-sync-summary__title"><?php esc_html_e('Sync summary', 'autodocs-publisher'); ?></h3>
+                            <dl class="autodocs-sync-summary__stats" id="autodocs-sidebar-summary">
+                                <div class="autodocs-sync-summary__stat">
+                                    <dt><?php esc_html_e('New articles', 'autodocs-publisher'); ?></dt>
+                                    <dd><span class="autodocs-sidebar__count autodocs-sidebar__count--new" data-autodocs-count="new">&mdash;</span></dd>
+                                </div>
+                                <div class="autodocs-sync-summary__stat">
+                                    <dt><?php esc_html_e('Modified articles', 'autodocs-publisher'); ?></dt>
+                                    <dd><span class="autodocs-sidebar__count autodocs-sidebar__count--modified" data-autodocs-count="modified">&mdash;</span></dd>
+                                </div>
+                                <div class="autodocs-sync-summary__stat">
+                                    <dt><?php esc_html_e('Synced articles', 'autodocs-publisher'); ?></dt>
+                                    <dd><span class="autodocs-sidebar__count autodocs-sidebar__count--synced" data-autodocs-count="synced">&mdash;</span></dd>
+                                </div>
+                                <div class="autodocs-sync-summary__stat autodocs-sync-summary__stat--total">
+                                    <dt><?php esc_html_e('Total articles', 'autodocs-publisher'); ?></dt>
+                                    <dd><span class="autodocs-sidebar__count autodocs-sidebar__count--total" data-autodocs-count="total">&mdash;</span></dd>
+                                </div>
+                            </dl>
+                        </div>
                         <p class="autodocs-tab-panel__toolbar">
                             <button type="button" class="button" id="autodocs-refresh-article-lists"><?php esc_html_e('Refresh article lists', 'autodocs-publisher'); ?></button>
                         </p>
@@ -284,42 +320,5 @@ if (!defined('ABSPATH')) {
                     </div>
                 </form>
 
-                <aside class="autodocs-settings__aside autodocs-sidebar" id="autodocs-sidebar" aria-label="<?php esc_attr_e('Connection and summary', 'autodocs-publisher'); ?>">
-                    <div class="autodocs-sidebar__card autodocs-sidebar__card--status">
-                        <h3 class="autodocs-sidebar__title">
-                            <svg stroke="currentColor" fill="currentColor" stroke-width="0" xmlns="http://www.w3.org/2000/svg" viewBox="48 48 416 416"><path d="M362.6 192.9L345 174.8c-.7-.8-1.8-1.2-2.8-1.2-1.1 0-2.1.4-2.8 1.2l-122 122.9-44.4-44.4c-.8-.8-1.8-1.2-2.8-1.2-1 0-2 .4-2.8 1.2l-17.8 17.8c-1.6 1.6-1.6 4.1 0 5.7l56 56c3.6 3.6 8 5.7 11.7 5.7 5.3 0 9.9-3.9 11.6-5.5h.1l133.7-134.4c1.4-1.7 1.4-4.2-.1-5.7z"></path><path d="M256 76c48.1 0 93.3 18.7 127.3 52.7S436 207.9 436 256s-18.7 93.3-52.7 127.3S304.1 436 256 436c-48.1 0-93.3-18.7-127.3-52.7S76 304.1 76 256s18.7-93.3 52.7-127.3S207.9 76 256 76m0-28C141.1 48 48 141.1 48 256s93.1 208 208 208 208-93.1 208-208S370.9 48 256 48z"></path></svg>
-                            <?php esc_html_e('Connection status', 'autodocs-publisher'); ?>
-                        </h3>
-                        <dl class="autodocs-sidebar__dl">
-                            <div class="autodocs-sidebar__row"><dt><?php esc_html_e('Status', 'autodocs-publisher'); ?></dt><dd id="autodocs-sidebar-status">—</dd></div>
-                            <div class="autodocs-sidebar__row"><dt><?php esc_html_e('Account', 'autodocs-publisher'); ?></dt><dd id="autodocs-sidebar-email">—</dd></div>
-                            <div class="autodocs-sidebar__row"><dt><?php esc_html_e('Last synced', 'autodocs-publisher'); ?></dt><dd id="autodocs-sidebar-last-sync">—</dd></div>
-                        </dl>
-                        <p class="autodocs-sidebar__test-wrap">
-                            <button type="button" class="button autodocs-sidebar__test-connection autodocs-action-test-connection"><?php esc_html_e('Test connection', 'autodocs-publisher'); ?></button>
-                        </p>
-                    </div>
-                    <div class="autodocs-sidebar__card">
-                        <h3 class="autodocs-sidebar__title">
-                            <svg stroke="currentColor" fill="currentColor" stroke-width="0" version="1" enable-background="new 0 0 48 48" xmlns="http://www.w3.org/2000/svg" viewBox="4 8 42.18 32"><path fill="#FFA000" d="M38,12H22l-4-4H8c-2.2,0-4,1.8-4,4v24c0,2.2,1.8,4,4,4h31c1.7,0,3-1.3,3-3V16C42,13.8,40.2,12,38,12z"></path><path fill="#FFCA28" d="M42.2,18H15.3c-1.9,0-3.6,1.4-3.9,3.3L8,40h31.7c1.9,0,3.6-1.4,3.9-3.3l2.5-14C46.6,20.3,44.7,18,42.2,18z"></path></svg>
-                            <?php esc_html_e('Root folder preview', 'autodocs-publisher'); ?>
-                        </h3>
-                        <ul class="autodocs-sidebar__dl autodocs-sidebar__folder-tree" id="autodocs-sidebar-folders">
-                            <li class="autodocs-sidebar__folder-placeholder"><?php esc_html_e('Connect Google and save a Drive root to see folders.', 'autodocs-publisher'); ?></li>
-                        </ul>
-                    </div>
-                    <div class="autodocs-sidebar__card">
-                        <h3 class="autodocs-sidebar__title">
-                            <svg stroke="currentColor" fill="currentColor" stroke-width="0" version="1" enable-background="new 0 0 48 48" xmlns="http://www.w3.org/2000/svg" viewBox="5 6 38 36"><g fill="#00BCD4"><rect x="37" y="18" width="6" height="24"></rect><rect x="29" y="26" width="6" height="16"></rect><rect x="21" y="22" width="6" height="20"></rect><rect x="13" y="32" width="6" height="10"></rect><rect x="5" y="28" width="6" height="14"></rect></g><g fill="#3F51B5"><circle cx="8" cy="16" r="3"></circle><circle cx="16" cy="18" r="3"></circle><circle cx="24" cy="11" r="3"></circle><circle cx="32" cy="13" r="3"></circle><circle cx="40" cy="9" r="3"></circle><polygon points="39.1,7.2 31.8,10.9 23.5,8.8 15.5,15.8 8.5,14.1 7.5,17.9 16.5,20.2 24.5,13.2 32.2,15.1 40.9,10.8"></polygon></g></svg>
-                            <?php esc_html_e('Sync summary', 'autodocs-publisher'); ?>
-                        </h3>
-                        <dl class="autodocs-sidebar__dl" id="autodocs-sidebar-summary">
-                            <div class="autodocs-sidebar__row"><dt><?php esc_html_e('New articles', 'autodocs-publisher'); ?></dt><dd><span class="autodocs-sidebar__count autodocs-sidebar__count--new" data-autodocs-count="new">—</span></dd></div>
-                            <div class="autodocs-sidebar__row"><dt><?php esc_html_e('Modified articles', 'autodocs-publisher'); ?></dt><dd><span class="autodocs-sidebar__count autodocs-sidebar__count--modified" data-autodocs-count="modified">—</span></dd></div>
-                            <div class="autodocs-sidebar__row"><dt><?php esc_html_e('Synced articles', 'autodocs-publisher'); ?></dt><dd><span class="autodocs-sidebar__count autodocs-sidebar__count--synced" data-autodocs-count="synced">—</span></dd></div>
-                            <div class="autodocs-sidebar__row autodocs-sidebar__row--total"><dt><?php esc_html_e('Total articles', 'autodocs-publisher'); ?></dt><dd><span class="autodocs-sidebar__count autodocs-sidebar__count--total" data-autodocs-count="total">—</span></dd></div>
-                        </dl>
-                    </div>
-                </aside>
             </div>
         </div>
