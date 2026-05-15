@@ -78,7 +78,9 @@ if (!defined('ABSPATH')) {
                     <div id="autodocs-tab-panel-drive" class="autodocs-tab-panel autodocs-tab-panel--drive<?php echo 'drive' === $current_tab ? ' is-active' : ''; ?>" role="tabpanel" aria-labelledby="autodocs-tabbtn-drive" tabindex="0">
                         <section class="autodocs-drive-section">
                             <div class="autodocs-drive-section__head">
-                                <span class="autodocs-drive-section__icon autodocs-drive-section__icon--folder" aria-hidden="true"></span>
+                                <svg class="autodocs-drive-section__icon autodocs-drive-section__icon--folder" stroke="currentColor" fill="currentColor" stroke-width="0" version="1" enable-background="new 0 0 48 48" xmlns="http://www.w3.org/2000/svg" viewBox="4 8 42.18 32">
+                                        <path fill="#FFA000" d="M38,12H22l-4-4H8c-2.2,0-4,1.8-4,4v24c0,2.2,1.8,4,4,4h31c1.7,0,3-1.3,3-3V16C42,13.8,40.2,12,38,12z"></path><path fill="#FFCA28" d="M42.2,18H15.3c-1.9,0-3.6,1.4-3.9,3.3L8,40h31.7c1.9,0,3.6-1.4,3.9-3.3l2.5-14C46.6,20.3,44.7,18,42.2,18z"></path>
+                                    </svg>
                                 <div>
                                     <h3 class="autodocs-drive-section__title"><?php esc_html_e('Drive root folder', 'autodocs-publisher'); ?></h3>
                                     <p class="autodocs-drive-section__subtitle"><?php esc_html_e('This is the main folder that contains your article buckets.', 'autodocs-publisher'); ?></p>
@@ -88,7 +90,9 @@ if (!defined('ABSPATH')) {
                                 <div class="autodocs-drive-root__card">
                                     <div class="autodocs-drive-root__row">
                                         <div class="autodocs-drive-root__meta">
-                                            <span class="autodocs-drive-root__folder-ico" aria-hidden="true"></span>
+                                            <svg class="autodocs-drive-root__folder-ico" stroke="currentColor" fill="currentColor" stroke-width="0" version="1" enable-background="new 0 0 48 48" xmlns="http://www.w3.org/2000/svg" viewBox="4 8 42.18 32">
+                                                <path fill="#FFA000" d="M38,12H22l-4-4H8c-2.2,0-4,1.8-4,4v24c0,2.2,1.8,4,4,4h31c1.7,0,3-1.3,3-3V16C42,13.8,40.2,12,38,12z"></path><path fill="#FFCA28" d="M42.2,18H15.3c-1.9,0-3.6,1.4-3.9,3.3L8,40h31.7c1.9,0,3.6-1.4,3.9-3.3l2.5-14C46.6,20.3,44.7,18,42.2,18z"></path>
+                                            </svg>
                                             <div>
                                                 <strong class="autodocs-drive-root__name" id="autodocs-drive-root-name"><?php echo $root_name !== '' ? esc_html($root_name) : esc_html__('— No folder selected —', 'autodocs-publisher'); ?></strong>
                                                 <div class="autodocs-drive-root__path" id="autodocs-drive-root-path"><?php echo $root_name !== '' ? esc_html('Drive / ' . $root_name) : esc_html__('Drive / —', 'autodocs-publisher'); ?></div>
@@ -125,7 +129,9 @@ if (!defined('ABSPATH')) {
                         <div id="autodocs-drive-buckets-wrap" class="autodocs-drive-buckets-wrap"<?php echo $drive_root ? '' : ' style="display:none;"'; ?>>
                             <section class="autodocs-drive-section autodocs-drive-section--buckets">
                                 <div class="autodocs-drive-section__head">
-                                    <span class="autodocs-drive-section__icon autodocs-drive-section__icon--doc" aria-hidden="true"></span>
+                                    <svg class="autodocs-drive-section__icon autodocs-drive-section__icon--doc" stroke="currentColor" fill="currentColor" stroke-width="0" version="1" enable-background="new 0 0 48 48" xmlns="http://www.w3.org/2000/svg" viewBox="4 8 42.18 32">
+                                        <path fill="#FFA000" d="M38,12H22l-4-4H8c-2.2,0-4,1.8-4,4v24c0,2.2,1.8,4,4,4h31c1.7,0,3-1.3,3-3V16C42,13.8,40.2,12,38,12z"></path><path fill="#FFCA28" d="M42.2,18H15.3c-1.9,0-3.6,1.4-3.9,3.3L8,40h31.7c1.9,0,3.6-1.4,3.9-3.3l2.5-14C46.6,20.3,44.7,18,42.2,18z"></path>
+                                    </svg>
                                     <div>
                                         <h3 class="autodocs-drive-section__title"><?php esc_html_e('Article buckets', 'autodocs-publisher'); ?></h3>
                                         <p class="autodocs-drive-section__subtitle"><?php esc_html_e('Each option is a direct child of the Drive root.', 'autodocs-publisher'); ?></p>
@@ -154,8 +160,6 @@ if (!defined('ABSPATH')) {
                                                 <p class="autodocs-bucket-card__desc"><?php esc_html_e('Articles already imported successfully.', 'autodocs-publisher'); ?></p>
                                             </div>
                                         </div>
-                                        <h4 class="autodocs-bucket-card__title"><?php esc_html_e('Synced', 'autodocs-publisher'); ?></h4>
-                                        <p class="autodocs-bucket-card__desc"><?php esc_html_e('Articles already imported successfully.', 'autodocs-publisher'); ?></p>
                                         <label class="screen-reader-text" for="autodocs-bucket-synced"><?php esc_html_e('Synced bucket folder', 'autodocs-publisher'); ?></label>
                                         <select class="autodocs-bucket-select" id="autodocs-bucket-synced" name="<?php echo esc_attr(AutoDocs_Settings::OPTION_NAME); ?>[folder_synced]" data-autodocs-saved="<?php echo esc_attr($fs); ?>">
                                             <option value=""><?php esc_html_e('— Select folder —', 'autodocs-publisher'); ?></option>

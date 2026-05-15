@@ -788,7 +788,7 @@
 
 .autodocs-drive-section__icon--folder,
 .autodocs-drive-section__icon--doc {
-    background: #0066ff;
+    color: #0066ff;
 }
 
 .autodocs-drive-section__title {
@@ -901,15 +901,11 @@
 }
 
 .autodocs-bucket-card--new .autodocs-bucket-card__icon {
-    background: #22c55e;
+    color: #22c55e;
 }
 
 .autodocs-bucket-card--synced .autodocs-bucket-card__icon {
-    background: #0066ff;
-}
-
-.autodocs-bucket-card--modified .autodocs-bucket-card__icon {
-    background: #f97316;
+    color: #0066ff;
 }
 
 .autodocs-bucket-card__title {
