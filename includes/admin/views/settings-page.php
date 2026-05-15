@@ -133,9 +133,13 @@ if (!defined('ABSPATH')) {
                                 </div>
                                 <div class="autodocs-bucket-cards">
                                     <div class="autodocs-bucket-card autodocs-bucket-card--new">
-                                        <div class="autodocs-bucket-card__icon" aria-hidden="true"></div>
-                                        <h4 class="autodocs-bucket-card__title"><?php esc_html_e('New', 'autodocs-publisher'); ?></h4>
-                                        <p class="autodocs-bucket-card__desc"><?php esc_html_e('New articles waiting to be imported.', 'autodocs-publisher'); ?></p>
+                                        <div class="autodocs-bucket-card__head">
+                                            <svg class="autodocs-bucket-card__icon" stroke="currentColor" fill="currentColor" stroke-width="0" xmlns="http://www.w3.org/2000/svg" viewBox="2.06 2.06 19.87 19.87"><g id="Circle_Plus"><g><path d="M15,12.5H12.5V15a.5.5,0,0,1-1,0V12.5H9a.5.5,0,0,1,0-1h2.5V9a.5.5,0,0,1,1,0v2.5H15A.5.5,0,0,1,15,12.5Z"></path><path d="M12,21.932A9.934,9.934,0,1,1,21.932,12,9.944,9.944,0,0,1,12,21.932ZM12,3.065A8.934,8.934,0,1,0,20.932,12,8.944,8.944,0,0,0,12,3.065Z"></path></g></g></svg>
+                                            <div class="autodocs-bucket-card__head-content">
+                                                <h4 class="autodocs-bucket-card__title"><?php esc_html_e('New', 'autodocs-publisher'); ?></h4>
+                                                <p class="autodocs-bucket-card__desc"><?php esc_html_e('New articles waiting to be imported.', 'autodocs-publisher'); ?></p>
+                                            </div>
+                                        </div>
                                         <label class="screen-reader-text" for="autodocs-bucket-new"><?php esc_html_e('New bucket folder', 'autodocs-publisher'); ?></label>
                                         <select class="autodocs-bucket-select" id="autodocs-bucket-new" name="<?php echo esc_attr(AutoDocs_Settings::OPTION_NAME); ?>[folder_new]" data-autodocs-saved="<?php echo esc_attr($fn); ?>">
                                             <option value=""><?php esc_html_e('— Select folder —', 'autodocs-publisher'); ?></option>
@@ -143,7 +147,13 @@ if (!defined('ABSPATH')) {
                                         <p class="autodocs-bucket-card__actions"><button type="button" class="button-link autodocs-bucket-card__change" data-autodocs-focus-select="autodocs-bucket-new"><?php esc_html_e('Change folder', 'autodocs-publisher'); ?></button></p>
                                     </div>
                                     <div class="autodocs-bucket-card autodocs-bucket-card--synced">
-                                        <div class="autodocs-bucket-card__icon" aria-hidden="true"></div>
+                                        <div class="autodocs-bucket-card__head">
+                                            <svg class="autodocs-bucket-card__icon" stroke="currentColor" fill="currentColor" stroke-width="0" xmlns="http://www.w3.org/2000/svg" viewBox="48 48 416 416"><path fill="none" stroke-miterlimit="10" stroke-width="32" d="M448 256c0-106-86-192-192-192S64 150 64 256s86 192 192 192 192-86 192-192z"></path><path fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M352 176 217.6 336 160 272"></path></svg>
+                                            <div class="autodocs-bucket-card__head-content">
+                                                <h4 class="autodocs-bucket-card__title"><?php esc_html_e('Synced', 'autodocs-publisher'); ?></h4>
+                                                <p class="autodocs-bucket-card__desc"><?php esc_html_e('Articles already imported successfully.', 'autodocs-publisher'); ?></p>
+                                            </div>
+                                        </div>
                                         <h4 class="autodocs-bucket-card__title"><?php esc_html_e('Synced', 'autodocs-publisher'); ?></h4>
                                         <p class="autodocs-bucket-card__desc"><?php esc_html_e('Articles already imported successfully.', 'autodocs-publisher'); ?></p>
                                         <label class="screen-reader-text" for="autodocs-bucket-synced"><?php esc_html_e('Synced bucket folder', 'autodocs-publisher'); ?></label>

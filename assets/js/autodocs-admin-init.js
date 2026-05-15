@@ -182,12 +182,23 @@
             A.on(settingsWrap, 'click', '.autodocs-bucket-card__change', function (e, btn) {
                 e.preventDefault();
                 var id = btn.getAttribute('data-autodocs-focus-select');
-                if (id) {
-                    var elFocus = A.qs('#' + id);
-                    if (elFocus && typeof elFocus.focus === 'function') {
-                        elFocus.focus();
-                    }
+                if (!id) {
+                    return;
                 }
+                var driveTab = A.qs('.autodocs-nav-tabs .nav-tab[data-autodocs-tab="drive"]', settingsWrap);
+                if (driveTab) {
+                    driveTab.click();
+                }
+                window.setTimeout(function () {
+                    var elFocus = A.qs('#' + id);
+                    if (!elFocus || typeof elFocus.focus !== 'function') {
+                        return;
+                    }
+                    if (typeof elFocus.scrollIntoView === 'function') {
+                        elFocus.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                    }
+                    elFocus.focus({ preventScroll: true });
+                }, 0);
             });
 
             function prepareImportAside(folderId, bucketKey) {

@@ -6,6 +6,7 @@
     A.createDrivePicker = function () {
         return {
             stack: [],
+            panelOpen: false,
             panel: A.qs('#autodocs-drive-folder-picker'),
             list: A.qs('#autodocs-drive-folder-list'),
             msg: A.qs('#autodocs-drive-folder-msg'),
@@ -43,7 +44,12 @@
             },
 
             show: function () {
-                A.showEl(this.panel, true);
+                if (!this.panel) {
+                    return;
+                }
+                this.panelOpen = true;
+                this.panel.removeAttribute('hidden');
+                this.panel.style.display = 'block';
                 this.resetStack();
                 this.updateUpState();
                 this.updateCrumb();
@@ -51,6 +57,7 @@
             },
 
             hide: function () {
+                this.panelOpen = false;
                 A.showEl(this.panel, false);
             },
 
@@ -158,7 +165,7 @@
         var browseBtn = A.qs('#autodocs-browse-drive-folders');
         if (browseBtn && drivePicker.panel) {
             browseBtn.addEventListener('click', function () {
-                if (A.isVisible(drivePicker.panel)) {
+                if (drivePicker.panelOpen) {
                     drivePicker.hide();
                 } else {
                     drivePicker.show();

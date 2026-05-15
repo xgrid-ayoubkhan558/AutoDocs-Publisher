@@ -883,6 +883,16 @@
     padding: 16px 16px 12px;
 }
 
+.autodocs-bucket-card__head {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.autodocs-bucket-card__head-content {
+    flex: 1;
+}
+
 .autodocs-bucket-card__icon {
     border-radius: 8px;
     height: 36px;
