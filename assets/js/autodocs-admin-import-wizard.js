@@ -65,6 +65,26 @@
             return null;
         }
 
+        function articleFolderLabel(a) {
+            return (a && (a.folder_name || a.doc_name)) || '—';
+        }
+
+        var previewLoadSeq = 0;
+
+        function updatePreviewHeader(article, data) {
+            if (!article) {
+                return;
+            }
+            var folderLabel =
+                (data && data.folder_name) || article.folder_name || article.doc_name || '—';
+            if (els.previewTitle) {
+                els.previewTitle.textContent = folderLabel;
+            }
+            if (els.previewPath) {
+                els.previewPath.textContent = article.path_label || article.folder_name || '';
+            }
+        }
+
         function setStep(step) {
             state.step = step;
             A.qsa('[data-wizard-step]', root).forEach(function (sec) {
@@ -186,7 +206,7 @@
                 var btn = A.el('button', {
                     type: 'button',
                     class: 'autodocs-import-wizard__selected-item' + (a.folder_id === state.activeId ? ' is-active' : ''),
-                    text: a.doc_name || a.folder_name || '—'
+                    text: articleFolderLabel(a)
                 });
                 btn.addEventListener('click', function () {
                     state.activeId = a.folder_id;
@@ -229,12 +249,10 @@
         }
 
         function renderPreview(data, article) {
-            if (els.previewTitle) {
-                els.previewTitle.textContent = (data.defaults && data.defaults.post_title) || article.doc_name || '';
+            if (state.activeId && article.folder_id !== state.activeId) {
+                return;
             }
-            if (els.previewPath) {
-                els.previewPath.textContent = article.path_label || article.folder_name || '';
-            }
+            updatePreviewHeader(article, data);
             syncMetaNoticeVisibility();
             if (els.contentHtml) {
                 els.contentHtml.innerHTML = data.content_html_preview || '<p class="description">' + t('contentPreview', 'Content preview') + '</p>';
@@ -310,12 +328,27 @@
             if (!article || typeof AutoDocsPublisher === 'undefined') {
                 return;
             }
+            state.activeId = folderId;
+            var seq = ++previewLoadSeq;
+            updatePreviewHeader(article, null);
+            if (els.contentHtml) {
+                els.contentHtml.innerHTML = '<p class="description">' + t('preparingImport', 'Loading import options…') + '</p>';
+            }
+            if (els.docStats) {
+                els.docStats.innerHTML = '';
+            }
+            if (els.metaDl) {
+                els.metaDl.innerHTML = '';
+            }
+            if (els.imagesPanel) {
+                els.imagesPanel.innerHTML = '';
+            }
+            if (els.driveDl) {
+                els.driveDl.innerHTML = '';
+            }
             if (state.prepared[folderId]) {
                 renderPreview(state.prepared[folderId], article);
                 return;
-            }
-            if (els.contentHtml) {
-                els.contentHtml.innerHTML = '<p class="description">' + t('preparingImport', 'Loading import options…') + '</p>';
             }
             var bk = state.bucketKey === 'modified' ? 'synced' : state.bucketKey;
             A.postFormUrlEncoded(AutoDocsPublisher.ajaxUrl, {
@@ -325,13 +358,25 @@
                 bucket_key: bk
             })
                 .then(function (res) {
+                    if (seq !== previewLoadSeq || state.activeId !== folderId) {
+                        return;
+                    }
                     if (!res || !res.success) {
+                        if (els.contentHtml) {
+                            els.contentHtml.innerHTML =
+                                '<p class="description">' + t('importFailed', 'Import failed.') + '</p>';
+                        }
                         return;
                     }
                     state.prepared[folderId] = res.data;
                     renderPreview(res.data, article);
                 })
-                .catch(function () {});
+                .catch(function () {
+                    if (seq === previewLoadSeq && state.activeId === folderId && els.contentHtml) {
+                        els.contentHtml.innerHTML =
+                            '<p class="description">' + t('importFailed', 'Import failed.') + '</p>';
+                    }
+                });
         }
 
         var optionsBuilt = false;
@@ -448,73 +493,27 @@
                 });
             });
 
-            var catMode = A.el('select');
-            catMode.appendChild(A.el('option', { value: 'doc', text: t('wizardFromMeta', 'From document (META)') }));
-            catMode.appendChild(A.el('option', { value: 'manual', text: t('wizardManualCategories', 'Choose WordPress categories') }));
-            catMode.value = d.categories_mode === 'manual' ? 'manual' : 'doc';
-            field(t('wizardCategoryAssignment', 'Category assignment'), catMode);
-            optionControls.categories_mode = catMode;
-
             optionControls.docCatChips = A.el('div', { class: 'autodocs-import-doc-preview__chips' });
             var docCatWrap = A.el('div', { class: 'autodocs-import-doc-preview autodocs-import-wizard__doc-tax-preview' });
             docCatWrap.appendChild(
-                A.el('p', { class: 'description autodocs-import-doc-preview__label', text: t('docCategoriesFromMeta', 'From document (will be applied on save)') })
+                A.el('p', { class: 'description autodocs-import-doc-preview__label', text: t('categoriesLabel', 'Categories') })
+            );
+            docCatWrap.appendChild(
+                A.el('p', { class: 'autodocs-import-doc-preview__legend', text: t('taxLegend', 'Green = exists in WordPress. Amber = will be created on import.') })
             );
             docCatWrap.appendChild(optionControls.docCatChips);
             wrap.appendChild(docCatWrap);
-            optionControls.docCatWrap = docCatWrap;
-
-            var catsSelect = A.el('select', { size: '6', class: 'autodocs-category-multiselect' });
-            catsSelect.multiple = true;
-            (data.categories || []).forEach(function (c) {
-                var opt = A.el('option', { value: String(c.id), text: c.name });
-                if ((d.categories || []).indexOf(c.id) !== -1) {
-                    opt.selected = true;
-                }
-                catsSelect.appendChild(opt);
-            });
-            var catManualWrap = A.el('div', { class: 'autodocs-import-wizard__option-field autodocs-import-wizard__manual-cats' });
-            catManualWrap.appendChild(A.el('label', { text: t('categoriesLabel', 'Categories') }));
-            catManualWrap.appendChild(catsSelect);
-            wrap.appendChild(catManualWrap);
-            optionControls.categories = catsSelect;
-            optionControls.catManualWrap = catManualWrap;
-
-            var tagMode = A.el('select');
-            tagMode.appendChild(A.el('option', { value: 'doc', text: t('wizardFromMeta', 'From document (META)') }));
-            tagMode.appendChild(A.el('option', { value: 'manual', text: t('tagsManual', 'Enter tags manually (comma-separated)') }));
-            tagMode.value = d.tags_mode === 'manual' ? 'manual' : 'doc';
-            field(t('wizardTagsAssignment', 'Tags assignment'), tagMode);
-            optionControls.tags_mode = tagMode;
 
             optionControls.docTagChips = A.el('div', { class: 'autodocs-import-doc-preview__chips' });
             var docTagWrap = A.el('div', { class: 'autodocs-import-doc-preview autodocs-import-wizard__doc-tax-preview' });
             docTagWrap.appendChild(
-                A.el('p', { class: 'description autodocs-import-doc-preview__label', text: t('docTagsFromMeta', 'From document (will be applied on save)') })
+                A.el('p', { class: 'description autodocs-import-doc-preview__label', text: t('tagsLabel', 'Tags') })
+            );
+            docTagWrap.appendChild(
+                A.el('p', { class: 'autodocs-import-doc-preview__legend', text: t('taxLegend', 'Green = exists in WordPress. Amber = will be created on import.') })
             );
             docTagWrap.appendChild(optionControls.docTagChips);
             wrap.appendChild(docTagWrap);
-            optionControls.docTagWrap = docTagWrap;
-
-            var tagsInput = A.el('input', { type: 'text', class: 'large-text', value: d.tags || '' });
-            var tagManualWrap = A.el('div', { class: 'autodocs-import-wizard__option-field autodocs-import-wizard__manual-tags' });
-            tagManualWrap.appendChild(A.el('label', { text: t('tagsManual', 'Tags (comma-separated)') }));
-            tagManualWrap.appendChild(tagsInput);
-            wrap.appendChild(tagManualWrap);
-            optionControls.tags = tagsInput;
-            optionControls.tagManualWrap = tagManualWrap;
-
-            function syncTaxVisibility() {
-                var catDoc = catMode.value === 'doc';
-                var tagDoc = tagMode.value === 'doc';
-                A.showEl(optionControls.docCatWrap, catDoc);
-                A.showEl(optionControls.catManualWrap, !catDoc);
-                A.showEl(optionControls.docTagWrap, tagDoc);
-                A.showEl(optionControls.tagManualWrap, !tagDoc);
-            }
-            catMode.addEventListener('change', syncTaxVisibility);
-            tagMode.addEventListener('change', syncTaxVisibility);
-            syncTaxVisibility();
 
             var excerpt = A.el('label', { class: 'autodocs-import-wizard__check' });
             var excerptCb = A.el('input', { type: 'checkbox' });
@@ -533,53 +532,60 @@
             optionControls.move_to_synced = moveCb;
         }
 
+        function renderTaxonomyChips(container, items) {
+            if (!container) {
+                return;
+            }
+            container.innerHTML = '';
+            if (!items || !items.length) {
+                container.appendChild(
+                    A.el('span', { class: 'autodocs-import-doc-preview__empty', text: t('docMetaListEmpty', 'None listed in document meta for this field.') })
+                );
+                return;
+            }
+            items.forEach(function (item) {
+                var label = typeof item === 'string' ? item : item.label;
+                var exists = typeof item === 'object' && item && !!item.exists;
+                var chip = A.el('span', {
+                    class:
+                        'autodocs-import-doc-preview__chip' +
+                        (exists ? ' autodocs-import-doc-preview__chip--exists' : ' autodocs-import-doc-preview__chip--missing'),
+                    text: String(label),
+                    title: exists ? t('taxExistsInWp', 'Already in WordPress') : t('taxWillCreate', 'Will be created on import')
+                });
+                container.appendChild(chip);
+            });
+        }
+
         function syncDocTaxonomyPreview(data) {
             if (!optionsBuilt || !data) {
                 return;
             }
-            var docCats = data.doc_categories_preview || [];
-            var docTags = data.doc_tags_preview || [];
-            if (optionControls.docCatChips) {
-                optionControls.docCatChips.innerHTML = '';
-                if (docCats.length) {
-                    docCats.forEach(function (label) {
-                        optionControls.docCatChips.appendChild(
-                            A.el('span', { class: 'autodocs-import-doc-preview__chip', text: String(label) })
-                        );
-                    });
-                } else {
-                    optionControls.docCatChips.appendChild(
-                        A.el('span', { class: 'autodocs-import-doc-preview__empty', text: t('docMetaListEmpty', 'None listed in document meta for this field.') })
-                    );
-                }
+            var catItems = data.doc_categories_taxonomy;
+            if (!catItems || !catItems.length) {
+                catItems = (data.doc_categories_preview || []).map(function (label) {
+                    return { label: label, exists: false };
+                });
             }
-            if (optionControls.docTagChips) {
-                optionControls.docTagChips.innerHTML = '';
-                if (docTags.length) {
-                    docTags.forEach(function (label) {
-                        optionControls.docTagChips.appendChild(
-                            A.el('span', { class: 'autodocs-import-doc-preview__chip', text: String(label) })
-                        );
-                    });
-                } else {
-                    optionControls.docTagChips.appendChild(
-                        A.el('span', { class: 'autodocs-import-doc-preview__empty', text: t('docMetaListEmpty', 'None listed in document meta for this field.') })
-                    );
-                }
+            var tagItems = data.doc_tags_taxonomy;
+            if (!tagItems || !tagItems.length) {
+                tagItems = (data.doc_tags_preview || []).map(function (label) {
+                    return { label: label, exists: false };
+                });
             }
+            renderTaxonomyChips(optionControls.docCatChips, catItems);
+            renderTaxonomyChips(optionControls.docTagChips, tagItems);
         }
 
         function collectOptions() {
-            var catMode = optionControls.categories_mode ? optionControls.categories_mode.value : 'doc';
-            var tagMode = optionControls.tags_mode ? optionControls.tags_mode.value : 'doc';
             return {
                 post_type: optionControls.post_type ? optionControls.post_type.value : 'post',
                 post_status: optionControls.post_status ? optionControls.post_status.value : 'draft',
                 post_author: optionControls.post_author ? optionControls.post_author.value : '',
-                categories_mode: catMode,
-                tags_mode: tagMode,
-                tags: tagMode === 'manual' && optionControls.tags ? optionControls.tags.value : '',
-                categories: catMode === 'manual' && optionControls.categories ? A.getMultiSelectValues(optionControls.categories) : [],
+                categories_mode: 'doc',
+                tags_mode: 'doc',
+                tags: '',
+                categories: [],
                 use_doc_excerpt: optionControls.use_doc_excerpt ? optionControls.use_doc_excerpt.checked : true,
                 move_to_synced: optionControls.move_to_synced ? optionControls.move_to_synced.checked : false,
                 acf_body_field: optionControls.acf_body_field ? optionControls.acf_body_field.value : '',
@@ -596,7 +602,7 @@
             els.confirm.innerHTML = '';
             var ul = A.el('ul', { class: 'autodocs-import-wizard__confirm-list' });
             list.forEach(function (a) {
-                ul.appendChild(A.el('li', { text: a.doc_name || a.folder_name }));
+                ul.appendChild(A.el('li', { text: articleFolderLabel(a) }));
             });
             els.confirm.appendChild(ul);
             els.confirm.appendChild(
@@ -645,11 +651,6 @@
             fd.append('move_to_synced', opts.move_to_synced ? '1' : '');
             fd.append('acf_body_field', opts.acf_body_field);
             fd.append('acf_body_field_custom', opts.acf_body_field_custom);
-            if (opts.categories && opts.categories.length) {
-                opts.categories.forEach(function (cid) {
-                    fd.append('categories[]', cid);
-                });
-            }
             A.postFormData(AutoDocsPublisher.ajaxUrl, fd)
                 .then(function (res) {
                     if (!res || !res.success) {
@@ -695,6 +696,7 @@
             state.search = '';
             state.step = 1;
             optionsBuilt = false;
+            previewLoadSeq = 0;
             if (opts.preselect && opts.preselect.length) {
                 opts.preselect.forEach(function (id) {
                     state.selected[id] = true;

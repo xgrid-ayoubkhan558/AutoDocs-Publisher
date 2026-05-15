@@ -811,6 +811,22 @@
     padding: 4px 8px;
 }
 
+.autodocs-import-doc-preview__chip--exists {
+    background: #edfaef;
+    border-color: #68de7c;
+}
+
+.autodocs-import-doc-preview__chip--missing {
+    background: #fcf9e8;
+    border-color: #dba617;
+}
+
+.autodocs-import-doc-preview__legend {
+    color: #646970;
+    font-size: 11px;
+    margin: 0 0 8px;
+}
+
 .autodocs-import-doc-preview__empty {
     color: #646970;
     font-size: 12px;

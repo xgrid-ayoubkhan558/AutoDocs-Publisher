@@ -201,6 +201,8 @@ final class AutoDocs_Sync_Import
 
         $doc_categories_preview = $this->split_meta_label_list(isset($meta['categories']) ? (string) $meta['categories'] : '');
         $doc_tags_preview = $this->split_meta_label_list(isset($meta['tags']) ? (string) $meta['tags'] : '');
+        $doc_categories_taxonomy = $this->build_doc_taxonomy_preview($doc_categories_preview, 'category');
+        $doc_tags_taxonomy = $this->build_doc_taxonomy_preview($doc_tags_preview, 'post_tag');
 
         $default_tags = '';
         if (! empty($meta['tags'])) {
@@ -293,6 +295,8 @@ final class AutoDocs_Sync_Import
             'drive_files' => $drive_files,
             'doc_categories_preview' => $doc_categories_preview,
             'doc_tags_preview' => $doc_tags_preview,
+            'doc_categories_taxonomy' => $doc_categories_taxonomy,
+            'doc_tags_taxonomy' => $doc_tags_taxonomy,
             'acf_body_field_choices' => $acf_choices,
             'acf_select_custom_value' => AutoDocs_Acf_Helpers::SELECT_CUSTOM_VALUE,
             'acf_select_site_default_value' => AutoDocs_Acf_Helpers::SELECT_SITE_DEFAULT_VALUE,
@@ -573,6 +577,39 @@ final class AutoDocs_Sync_Import
         }
 
         return array_values(array_unique(array_filter($ids)));
+    }
+
+    /**
+     * @param string[] $labels
+     * @param string   $taxonomy category|post_tag
+     * @return array<int, array{label: string, exists: bool}>
+     */
+    private function build_doc_taxonomy_preview(array $labels, $taxonomy)
+    {
+        $taxonomy = $taxonomy === 'post_tag' ? 'post_tag' : 'category';
+        $items = array();
+        foreach ($labels as $label) {
+            $label = is_string($label) ? trim($label) : '';
+            if ($label === '') {
+                continue;
+            }
+            $exists = false;
+            $t = term_exists($label, $taxonomy);
+            if ($t) {
+                $exists = true;
+            } elseif ($taxonomy === 'post_tag') {
+                $slug = sanitize_title($label);
+                if ($slug !== '' && get_term_by('slug', $slug, 'post_tag')) {
+                    $exists = true;
+                }
+            }
+            $items[] = array(
+                'label' => $label,
+                'exists' => $exists,
+            );
+        }
+
+        return $items;
     }
 
     /**

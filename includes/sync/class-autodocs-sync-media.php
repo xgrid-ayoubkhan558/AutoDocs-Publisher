@@ -19,6 +19,12 @@ final class AutoDocs_Sync_Media
 
     public function sanitize_google_html($html)
     {
+        $html = is_string($html) ? $html : '';
+        if ($html !== '') {
+            $html = preg_replace('/<style\b[^>]*>[\s\S]*?<\/style>/iu', '', $html);
+            $html = preg_replace('/<link\b[^>]*>/iu', '', $html);
+        }
+
         $allowed = wp_kses_allowed_html('post');
         $allowed['img'] = array('src' => true, 'alt' => true, 'title' => true, 'width' => true, 'height' => true, 'class' => true);
         $allowed['style'] = array();
