@@ -90,9 +90,7 @@ if (!defined('ABSPATH')) {
                                 <div class="autodocs-drive-root__card">
                                     <div class="autodocs-drive-root__row">
                                         <div class="autodocs-drive-root__meta">
-                                            <svg class="autodocs-drive-root__folder-ico" stroke="currentColor" fill="currentColor" stroke-width="0" version="1" enable-background="new 0 0 48 48" xmlns="http://www.w3.org/2000/svg" viewBox="4 8 42.18 32">
-                                                <path fill="#FFA000" d="M38,12H22l-4-4H8c-2.2,0-4,1.8-4,4v24c0,2.2,1.8,4,4,4h31c1.7,0,3-1.3,3-3V16C42,13.8,40.2,12,38,12z"></path><path fill="#FFCA28" d="M42.2,18H15.3c-1.9,0-3.6,1.4-3.9,3.3L8,40h31.7c1.9,0,3.6-1.4,3.9-3.3l2.5-14C46.6,20.3,44.7,18,42.2,18z"></path>
-                                            </svg>
+                                            <svg class="autodocs-drive-root__folder-ico" stroke="currentColor" fill="currentColor" stroke-width="0" xmlns="http://www.w3.org/2000/svg" viewBox="32 96 448 320"><path d="M437.334 144H256.006l-42.668-48H74.666C51.197 96 32 115.198 32 138.667v234.666C32 396.802 51.197 416 74.666 416h362.668C460.803 416 480 396.802 480 373.333V186.667C480 163.198 460.803 144 437.334 144zM448 373.333c0 5.782-4.885 10.667-10.666 10.667H74.666C68.884 384 64 379.115 64 373.333V176h373.334c5.781 0 10.666 4.885 10.666 10.667v186.666z"></path></svg>
                                             <div>
                                                 <strong class="autodocs-drive-root__name" id="autodocs-drive-root-name"><?php echo $root_name !== '' ? esc_html($root_name) : esc_html__('— No folder selected —', 'autodocs-publisher'); ?></strong>
                                                 <div class="autodocs-drive-root__path" id="autodocs-drive-root-path"><?php echo $root_name !== '' ? esc_html('Drive / ' . $root_name) : esc_html__('Drive / —', 'autodocs-publisher'); ?></div>
