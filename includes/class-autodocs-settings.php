@@ -59,7 +59,9 @@ class AutoDocs_Settings
             'folder_synced' => isset($input['folder_synced']) ? sanitize_text_field($input['folder_synced']) : '',
             'folder_new' => isset($input['folder_new']) ? sanitize_text_field($input['folder_new']) : '',
             'folder_modified' => '',
-            'acf_body_field' => $this->sanitize_acf_body_field_input($input),
+            'acf_body_field' => (array_key_exists('acf_body_field', $input) || array_key_exists('acf_body_field_custom', $input))
+                ? $this->sanitize_acf_body_field_input($input)
+                : (isset($existing['acf_body_field']) ? (string) $existing['acf_body_field'] : ''),
             'folder_missing' => isset($input['folder_missing']) ? sanitize_text_field($input['folder_missing']) : '',
         );
     }

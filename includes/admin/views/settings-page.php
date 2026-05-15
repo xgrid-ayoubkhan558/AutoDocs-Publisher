@@ -39,6 +39,15 @@ if (!defined('ABSPATH')) {
                         </span>
                     </span>
                 </div>
+                <div class="autodocs-settings__header-actions">
+                    <?php if ($connected) : ?>
+                        <button type="submit" class="button autodocs-settings__header-disconnect" form="autodocs-google-disconnect-form" onclick="return window.confirm('<?php echo esc_js(__('Disconnect Google Drive from this site?', 'autodocs-publisher')); ?>');">
+                            <?php esc_html_e('Disconnect Drive', 'autodocs-publisher'); ?>
+                        </button>
+                    <?php endif; ?>
+                    <button type="button" class="button autodocs-settings__header-test" id="autodocs-footer-test-connection"><?php esc_html_e('Test connection', 'autodocs-publisher'); ?></button>
+                    <button type="button" class="button" id="autodocs-sync-now"><?php esc_html_e('Sync Now', 'autodocs-publisher'); ?></button>
+                </div>
             </div>
             <?php $this->notice_reconnect_scopes(); ?>
             <?php $this->notice(); ?>
@@ -218,7 +227,7 @@ if (!defined('ABSPATH')) {
                                     <p class="autodocs-api-card__hint">
                                         <?php
                                         if ($connected) {
-                                            esc_html_e('Drive and Docs access is authorized. Use Disconnect Drive in the bar below to revoke tokens. You can update credentials here.', 'autodocs-publisher');
+                                            esc_html_e('Drive and Docs access is authorized. Use Disconnect Drive in the page header to revoke tokens. You can update credentials here.', 'autodocs-publisher');
                                         } elseif ($has_saved_creds) {
                                             esc_html_e('Credentials are saved. Click Connect to sign in with Google. After changing ID or secret, save settings first.', 'autodocs-publisher');
                                         } else {
@@ -229,11 +238,7 @@ if (!defined('ABSPATH')) {
                                 </div>
                             </div>
                             <div class="autodocs-api-card__actions">
-                                <?php if ($connected) : ?>
-                                    <button type="submit" class="button" form="autodocs-google-disconnect-form" onclick="return window.confirm('<?php echo esc_js(__('Disconnect Google from this site?', 'autodocs-publisher')); ?>');">
-                                        <?php esc_html_e('Disconnect Google', 'autodocs-publisher'); ?>
-                                    </button>
-                                <?php elseif ($has_saved_creds && $oauth_start_url !== '') : ?>
+                                <?php if (!$connected && $has_saved_creds && $oauth_start_url !== '') : ?>
                                     <a class="button button-primary" href="<?php echo esc_url($oauth_start_url); ?>"><?php esc_html_e('Connect Google Drive', 'autodocs-publisher'); ?></a>
                                 <?php endif; ?>
                             </div>
@@ -248,72 +253,12 @@ if (!defined('ABSPATH')) {
                                 <label for="autodocs-client-secret"><?php esc_html_e('Google Client Secret', 'autodocs-publisher'); ?></label>
                                 <input class="large-text" id="autodocs-client-secret" type="password" name="<?php echo esc_attr(AutoDocs_Settings::OPTION_NAME); ?>[client_secret]" value="<?php echo esc_attr($client_secret); ?>" autocomplete="off">
                             </p>
-                            <p class="autodocs-google-creds__field autodocs-google-creds__field--acf-body">
-                                <?php if (! empty($acf_body_field_choices)) : ?>
-                                    <label for="autodocs-acf-body-select"><?php esc_html_e('Map imported HTML to', 'autodocs-publisher'); ?></label>
-                                    <select
-                                        class="large-text autodocs-acf-body-select"
-                                        id="autodocs-acf-body-select"
-                                        name="<?php echo esc_attr(AutoDocs_Settings::OPTION_NAME); ?>[acf_body_field]"
-                                        onchange="var c=document.getElementById('autodocs-acf-body-custom');if(!c)return;c.style.display=this.value==='<?php echo esc_js(AutoDocs_Acf_Helpers::SELECT_CUSTOM_VALUE); ?>'?'':'none';"
-                                    >
-                                        <option value="" <?php selected($acf_select_value, '', false); ?>><?php esc_html_e('Post content (editor) only', 'autodocs-publisher'); ?></option>
-                                        <?php
-                                        $current_group = null;
-                                        foreach ($acf_body_field_choices as $row) {
-                                            $g = isset($row['group']) ? (string) $row['group'] : '';
-                                            if ($g !== $current_group) {
-                                                if (null !== $current_group) {
-                                                    echo '</optgroup>';
-                                                }
-                                                $current_group = $g;
-                                                echo '<optgroup label="' . esc_attr($g !== '' ? $g : __('Field group', 'autodocs-publisher')) . '">';
-                                            }
-                                            printf(
-                                                '<option value="%s" %s>%s</option>',
-                                                esc_attr($row['value']),
-                                                selected($acf_select_value, $row['value'], false),
-                                                esc_html($row['label'])
-                                            );
-                                        }
-                                        if (null !== $current_group) {
-                                            echo '</optgroup>';
-                                        }
-                                        ?>
-                                        <option value="<?php echo esc_attr(AutoDocs_Acf_Helpers::SELECT_CUSTOM_VALUE); ?>" <?php selected($acf_select_value, AutoDocs_Acf_Helpers::SELECT_CUSTOM_VALUE, false); ?>><?php esc_html_e('Other field key or name…', 'autodocs-publisher'); ?></option>
-                                    </select>
-                                    <input
-                                        class="large-text code"
-                                        type="text"
-                                        id="autodocs-acf-body-custom"
-                                        name="<?php echo esc_attr(AutoDocs_Settings::OPTION_NAME); ?>[acf_body_field_custom]"
-                                        value="<?php echo $acf_body_use_custom ? esc_attr($acf_body_field) : ''; ?>"
-                                        autocomplete="off"
-                                        placeholder="<?php esc_attr_e('field_xxxxxxxx or field name', 'autodocs-publisher'); ?>"
-                                        style="<?php echo $acf_body_use_custom ? '' : 'display:none;'; ?> margin-top:8px;"
-                                    >
-                                    <span class="description"><?php esc_html_e('Choose a WYSIWYG, textarea, or code field from your ACF field groups, or pick “Other” and enter the field key or name. When set, imported HTML is saved with ACF update_field() and the post editor body is left as a minimal placeholder.', 'autodocs-publisher'); ?></span>
-                                <?php else : ?>
-                                    <label for="autodocs-acf-body-field"><?php esc_html_e('ACF field for HTML body (optional)', 'autodocs-publisher'); ?></label>
-                                    <input class="large-text code" id="autodocs-acf-body-field" name="<?php echo esc_attr(AutoDocs_Settings::OPTION_NAME); ?>[acf_body_field]" value="<?php echo esc_attr($acf_body_field); ?>" autocomplete="off" placeholder="field_xxx or body_html">
-                                    <span class="description"><?php esc_html_e('If Advanced Custom Fields is active with WYSIWYG/textarea fields, a dropdown appears above. Otherwise enter the field key or name here. When set, imported HTML is saved with update_field() and post_content gets a minimal placeholder.', 'autodocs-publisher'); ?></span>
-                                <?php endif; ?>
-                            </p>
                         </div>
                     </div>
                     </div>
 
                     <div class="autodocs-settings-form-footer">
-                        <div class="autodocs-settings-form-footer__left">
-                            <?php if ($connected) : ?>
-                                <button type="submit" class="button autodocs-settings-form-footer__disconnect" form="autodocs-google-disconnect-form" onclick="return window.confirm('<?php echo esc_js(__('Disconnect Google Drive from this site?', 'autodocs-publisher')); ?>');">
-                                    <?php esc_html_e('Disconnect Drive', 'autodocs-publisher'); ?>
-                                </button>
-                            <?php endif; ?>
-                        </div>
                         <div class="autodocs-settings-form-footer__right">
-                            <button type="button" class="button autodocs-settings-form-footer__test" id="autodocs-footer-test-connection"><?php esc_html_e('Test connection', 'autodocs-publisher'); ?></button>
-                            <button type="button" class="button" id="autodocs-sync-now"><?php esc_html_e('Sync Now', 'autodocs-publisher'); ?></button>
                             <?php submit_button(__('Save changes', 'autodocs-publisher'), 'primary', 'submit', false, array('id' => 'autodocs-save-settings')); ?>
                             <span class="autodocs-settings-form-footer__result" id="autodocs-sync-result"></span>
                         </div>

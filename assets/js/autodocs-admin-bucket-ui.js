@@ -16,6 +16,7 @@
             i18n: typeof AutoDocsPublisher !== 'undefined' && AutoDocsPublisher.i18n ? AutoDocsPublisher.i18n : {},
             perPage: perPage,
             panelPages: { new: 1, synced: 1, modified: 1 },
+            panelLoaded: { new: '', synced: '', modified: '' },
             bucketSelectSelectors: ['#autodocs-bucket-new', '#autodocs-bucket-synced'],
             articlePanelRows: [
                 { key: 'new', panel: A.qs('#autodocs-article-list-new') },
@@ -72,6 +73,15 @@
                     }
                 });
                 this.panelPages = { new: 1, synced: 1, modified: 1 };
+                this.panelLoaded = { new: '', synced: '', modified: '' };
+            },
+
+            panelSignature: function (bucketKey, folderId, listMode, page) {
+                return [bucketKey, folderId || '', listMode || '', String(page || 1)].join('|');
+            },
+
+            invalidateArticlePanels: function () {
+                this.panelLoaded = { new: '', synced: '', modified: '' };
             },
 
             fillBucketSelectsFromFolders: function (folders) {
@@ -164,7 +174,7 @@
                         ui.fillBucketSelectsFromFolders(folders);
                         if (!A.articleListsBootstrapped) {
                             A.articleListsBootstrapped = true;
-                            ui.refreshActiveArticlePanel();
+                            ui.loadAllArticlePanels(false);
                         }
                     })
                     .catch(function () {
@@ -230,13 +240,10 @@
 
                 var table = A.el('table', { class: 'widefat striped autodocs-articles-table' });
                 var trh = A.el('tr');
-                ['article', 'categoryColumn', 'lastSynced', 'lastModified', 'size', 'actions'].forEach(function (colKey) {
+                ['article', 'categoryColumn', 'actions'].forEach(function (colKey) {
                     var labels = {
                         article: ui.t('article', 'Article'),
                         categoryColumn: ui.t('categoryColumn', 'Categories (from doc)'),
-                        lastSynced: ui.t('lastSynced', 'Last synced'),
-                        lastModified: ui.t('lastModified', 'Doc modified'),
-                        size: ui.t('size', 'Size'),
                         actions: ui.t('actions', 'Actions')
                     };
                     trh.appendChild(A.el('th', { scope: 'col', text: labels[colKey] }));
@@ -264,13 +271,6 @@
                     artTd.appendChild(stack);
                     tr.appendChild(artTd);
                     tr.appendChild(A.el('td', { text: a.categories_display || '—' }));
-                    var syncLabel = a.last_synced_formatted || '';
-                    if (!syncLabel && a.modified) {
-                        syncLabel = A.formatIsoDate(a.modified);
-                    }
-                    tr.appendChild(A.el('td', { text: syncLabel || '—' }));
-                    tr.appendChild(A.el('td', { text: A.formatIsoDate(a.modified) }));
-                    tr.appendChild(A.el('td', { text: A.formatBytes(a.size) }));
                     var actTd = A.el('td', { class: 'autodocs-articles-table__td-actions' });
                     if (a.web_view_link) {
                         actTd.appendChild(
@@ -300,7 +300,7 @@
                 panel.appendChild(table);
             },
 
-            refreshArticlePanel: function (panel, folderId, bucketKey, listMode, page) {
+            refreshArticlePanel: function (panel, folderId, bucketKey, listMode, page, force) {
                 var ui = this;
                 listMode = listMode || '';
                 page = page || ui.panelPages[bucketKey] || 1;
@@ -309,6 +309,12 @@
                 if (!panel) {
                     return;
                 }
+
+                var sig = ui.panelSignature(bucketKey, folderId, listMode, page);
+                if (!force && ui.panelLoaded[bucketKey] === sig && panel.childElementCount > 0) {
+                    return;
+                }
+
                 panel.innerHTML = '';
                 panel.appendChild(
                     A.el('p', { class: 'description', text: ui.t('loadingArticleFolders', 'Loading article folders…') })
@@ -351,6 +357,7 @@
                                     ? response.data.message
                                     : ui.t('folderListError', 'Could not load folders.');
                             panel.appendChild(A.el('p', { class: 'description', text: err }));
+                            ui.panelLoaded[bucketKey] = sig;
                             return;
                         }
                         var data = response.data || {};
@@ -366,11 +373,13 @@
                                     text: ui.t('noArticleFolders', 'No article folders in this bucket.')
                                 })
                             );
+                            ui.panelLoaded[bucketKey] = sig;
                             return;
                         }
 
                         ui.renderArticlesTable(panel, articles, bucketKey, listMode);
                         ui.renderPagination(panel, bucketKey, currentPage, totalPages, total);
+                        ui.panelLoaded[bucketKey] = sig;
                     })
                     .catch(function () {
                         panel.innerHTML = '';
@@ -388,7 +397,7 @@
                 this.refreshArticlePanel(row.panel, this.folderIdForArticleKey(row.key), row.key, row.listMode || '', p);
             },
 
-            refreshArticlePanelForKey: function (key, page) {
+            refreshArticlePanelForKey: function (key, page, force) {
                 var row = this.rowForKey(key);
                 if (!row || !row.panel) {
                     return;
@@ -403,12 +412,28 @@
                     this.folderIdForArticleKey(row.key),
                     row.key,
                     row.listMode || '',
-                    this.panelPages[key]
+                    this.panelPages[key],
+                    !!force
                 );
             },
 
-            refreshAllArticlePanels: function () {
-                this.refreshActiveArticlePanel();
+            loadAllArticlePanels: function (force) {
+                var ui = this;
+                ui.articlePanelRows.forEach(function (row) {
+                    ui.refreshArticlePanel(
+                        row.panel,
+                        ui.folderIdForArticleKey(row.key),
+                        row.key,
+                        row.listMode || '',
+                        ui.panelPages[row.key] || 1,
+                        !!force
+                    );
+                });
+            },
+
+            refreshAllArticlePanels: function (force) {
+                this.invalidateArticlePanels();
+                this.loadAllArticlePanels(!!force);
             }
         };
         return bucketUi;
