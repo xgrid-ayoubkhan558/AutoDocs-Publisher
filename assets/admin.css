@@ -1201,6 +1201,15 @@ body.autodocs-import-wizard-open {
     padding: 12px 20px;
 }
 
+.autodocs-import-wizard__back {
+    text-decoration: none;
+}
+
+.autodocs-import-wizard__back:hover,
+.autodocs-import-wizard__back:focus {
+    text-decoration: none;
+}
+
 .autodocs-import-wizard__title {
     font-size: 18px;
     margin: 0;
@@ -1399,6 +1408,40 @@ body.autodocs-import-wizard-open {
     max-height: 360px;
     overflow: auto;
     padding: 12px 14px;
+}
+
+.autodocs-import-wizard__content-html h1,
+.autodocs-import-wizard__content-html h2,
+.autodocs-import-wizard__content-html h3,
+.autodocs-import-wizard__content-html h4,
+.autodocs-import-wizard__content-html h5,
+.autodocs-import-wizard__content-html h6 {
+    line-height: 1.3;
+    margin: 1em 0 0.5em;
+}
+
+.autodocs-import-wizard__content-html h1:first-child,
+.autodocs-import-wizard__content-html h2:first-child,
+.autodocs-import-wizard__content-html h3:first-child {
+    margin-top: 0;
+}
+
+.autodocs-import-wizard__content-html p {
+    margin: 0 0 0.75em;
+}
+
+.autodocs-import-wizard__content-html ul,
+.autodocs-import-wizard__content-html ol {
+    margin: 0 0 0.75em 1.25em;
+    padding: 0;
+}
+
+.autodocs-import-wizard__content-html li {
+    margin-bottom: 0.25em;
+}
+
+.autodocs-import-wizard__doc-tax-preview {
+    margin-bottom: 12px;
 }
 
 .autodocs-import-wizard__doc-stats {

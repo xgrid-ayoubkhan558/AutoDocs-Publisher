@@ -108,7 +108,6 @@
                 if (state.activeId) {
                     loadPreview(state.activeId);
                 }
-                renderOptionsOnce();
             }
             if (step === 3) {
                 renderConfirm();
@@ -199,6 +198,21 @@
             });
         }
 
+        function syncMetaNoticeVisibility() {
+            if (!els.metaNotice) {
+                return;
+            }
+            var data = state.activeId ? state.prepared[state.activeId] : null;
+            var show = state.previewTab === 'meta' && data && data.has_meta_block;
+            els.metaNotice.hidden = !show;
+            if (show) {
+                els.metaNotice.textContent = t(
+                    'wizardMetaDetected',
+                    'META detected in document. Title, excerpt, categories and other settings will be imported from the document\'s META block.'
+                );
+            }
+        }
+
         function setPreviewTab(tab) {
             state.previewTab = tab;
             A.qsa('[data-wizard-preview-tab]', root).forEach(function (btn) {
@@ -211,6 +225,7 @@
                 panel.classList.toggle('is-active', on);
                 panel.hidden = !on;
             });
+            syncMetaNoticeVisibility();
         }
 
         function renderPreview(data, article) {
@@ -220,17 +235,7 @@
             if (els.previewPath) {
                 els.previewPath.textContent = article.path_label || article.folder_name || '';
             }
-            if (els.metaNotice) {
-                if (data.has_meta_block) {
-                    els.metaNotice.hidden = false;
-                    els.metaNotice.textContent = t(
-                        'wizardMetaDetected',
-                        'META detected in document. Title, excerpt, categories and other settings will be imported from the document\'s META block.'
-                    );
-                } else {
-                    els.metaNotice.hidden = true;
-                }
-            }
+            syncMetaNoticeVisibility();
             if (els.contentHtml) {
                 els.contentHtml.innerHTML = data.content_html_preview || '<p class="description">' + t('contentPreview', 'Content preview') + '</p>';
             }
@@ -295,6 +300,9 @@
                     els.driveDl.appendChild(dd);
                 }
             }
+
+            renderOptionsFromPrepare(data);
+            syncDocTaxonomyPreview(data);
         }
 
         function loadPreview(folderId) {
@@ -329,12 +337,13 @@
         var optionsBuilt = false;
         var optionControls = {};
 
-        function renderOptionsOnce() {
-            if (optionsBuilt || !els.options) {
+        function renderOptionsFromPrepare(data) {
+            if (optionsBuilt || !els.options || !data) {
                 return;
             }
             optionsBuilt = true;
             var wrap = els.options;
+            var d = data.defaults || {};
             wrap.innerHTML = '';
 
             function field(label, node) {
@@ -346,12 +355,24 @@
             }
 
             var ptype = A.el('select');
+            var types = data.post_types && data.post_types.length ? data.post_types : [{ name: 'post', label: 'Post' }];
+            types.forEach(function (pt) {
+                var opt = A.el('option', { value: pt.name, text: pt.label || pt.name });
+                if (pt.name === (d.post_type || 'post')) {
+                    opt.selected = true;
+                }
+                ptype.appendChild(opt);
+            });
             field(t('postType', 'Post type'), ptype);
             optionControls.post_type = ptype;
 
             var pstatus = A.el('select');
             ['draft', 'publish', 'pending', 'private'].forEach(function (s) {
-                pstatus.appendChild(A.el('option', { value: s, text: s }));
+                var opt = A.el('option', { value: s, text: s });
+                if (s === (d.post_status || 'draft')) {
+                    opt.selected = true;
+                }
+                pstatus.appendChild(opt);
             });
             field(t('postStatus', 'Status'), pstatus);
             optionControls.post_status = pstatus;
@@ -367,21 +388,133 @@
             field(t('wizardAuthor', 'Author'), author);
             optionControls.post_author = author;
 
+            var cv = data.acf_select_custom_value || '__autodocs_custom__';
+            var acfSelect = A.el('select', { class: 'large-text autodocs-import-acf-body-select' });
+            var acfCustom = A.el('input', {
+                type: 'text',
+                class: 'large-text code autodocs-import-acf-body-custom',
+                value: d.acf_body_field_custom || '',
+                autocomplete: 'off',
+                placeholder: t('importAcfOtherPlaceholder', 'ACF field key or name')
+            });
+            acfSelect.appendChild(A.el('option', { value: '', text: t('importPostContentOnly', 'Post content (editor) only') }));
+            (data.acf_body_field_choices || []).forEach(function (row) {
+                acfSelect.appendChild(A.el('option', { value: String(row.value), text: String(row.label) }));
+            });
+            acfSelect.appendChild(A.el('option', { value: cv, text: t('importAcfOther', 'Other field key or name…') }));
+            var defAcf = d.acf_body_field || '';
+            var foundAcf = false;
+            A.qsa('option', acfSelect).forEach(function (o) {
+                if (o.value === defAcf) {
+                    o.selected = true;
+                    foundAcf = true;
+                }
+            });
+            if (!foundAcf && defAcf === cv) {
+                acfSelect.value = cv;
+            }
+            function syncAcfCustom() {
+                acfCustom.style.display = acfSelect.value === cv ? '' : 'none';
+            }
+            acfSelect.addEventListener('change', syncAcfCustom);
+            syncAcfCustom();
+            var acfWrap = A.el('div', { class: 'autodocs-import-wizard__option-field autodocs-import-wizard__option-field--acf' });
+            acfWrap.appendChild(A.el('label', { text: t('importBodyTargetLabel', 'Imported HTML goes to') }));
+            acfWrap.appendChild(acfSelect);
+            acfWrap.appendChild(acfCustom);
+            wrap.appendChild(acfWrap);
+            optionControls.acf_body_field = acfSelect;
+            optionControls.acf_body_field_custom = acfCustom;
+
+            ptype.addEventListener('change', function () {
+                var pt = (ptype.value || 'post').trim() || 'post';
+                A.postFormUrlEncoded(AutoDocsPublisher.ajaxUrl, {
+                    action: 'autodocs_import_acf_body_choices',
+                    nonce: AutoDocsPublisher.importNonce,
+                    post_type: pt
+                }).then(function (res) {
+                    if (!res || !res.success || !res.data) {
+                        return;
+                    }
+                    var prev = acfSelect.value;
+                    acfSelect.innerHTML = '';
+                    acfSelect.appendChild(A.el('option', { value: '', text: t('importPostContentOnly', 'Post content (editor) only') }));
+                    (res.data.acf_body_field_choices || []).forEach(function (row) {
+                        acfSelect.appendChild(A.el('option', { value: String(row.value), text: String(row.label) }));
+                    });
+                    acfSelect.appendChild(A.el('option', { value: cv, text: t('importAcfOther', 'Other field key or name…') }));
+                    acfSelect.value = prev;
+                    syncAcfCustom();
+                });
+            });
+
             var catMode = A.el('select');
             catMode.appendChild(A.el('option', { value: 'doc', text: t('wizardFromMeta', 'From document (META)') }));
             catMode.appendChild(A.el('option', { value: 'manual', text: t('wizardManualCategories', 'Choose WordPress categories') }));
+            catMode.value = d.categories_mode === 'manual' ? 'manual' : 'doc';
             field(t('wizardCategoryAssignment', 'Category assignment'), catMode);
             optionControls.categories_mode = catMode;
 
+            optionControls.docCatChips = A.el('div', { class: 'autodocs-import-doc-preview__chips' });
+            var docCatWrap = A.el('div', { class: 'autodocs-import-doc-preview autodocs-import-wizard__doc-tax-preview' });
+            docCatWrap.appendChild(
+                A.el('p', { class: 'description autodocs-import-doc-preview__label', text: t('docCategoriesFromMeta', 'From document (will be applied on save)') })
+            );
+            docCatWrap.appendChild(optionControls.docCatChips);
+            wrap.appendChild(docCatWrap);
+            optionControls.docCatWrap = docCatWrap;
+
+            var catsSelect = A.el('select', { size: '6', class: 'autodocs-category-multiselect' });
+            catsSelect.multiple = true;
+            (data.categories || []).forEach(function (c) {
+                var opt = A.el('option', { value: String(c.id), text: c.name });
+                if ((d.categories || []).indexOf(c.id) !== -1) {
+                    opt.selected = true;
+                }
+                catsSelect.appendChild(opt);
+            });
+            var catManualWrap = A.el('div', { class: 'autodocs-import-wizard__option-field autodocs-import-wizard__manual-cats' });
+            catManualWrap.appendChild(A.el('label', { text: t('categoriesLabel', 'Categories') }));
+            catManualWrap.appendChild(catsSelect);
+            wrap.appendChild(catManualWrap);
+            optionControls.categories = catsSelect;
+            optionControls.catManualWrap = catManualWrap;
+
             var tagMode = A.el('select');
             tagMode.appendChild(A.el('option', { value: 'doc', text: t('wizardFromMeta', 'From document (META)') }));
-            tagMode.appendChild(A.el('option', { value: 'manual', text: t('wizardManualTags', 'Enter tags manually') }));
+            tagMode.appendChild(A.el('option', { value: 'manual', text: t('tagsManual', 'Enter tags manually (comma-separated)') }));
+            tagMode.value = d.tags_mode === 'manual' ? 'manual' : 'doc';
             field(t('wizardTagsAssignment', 'Tags assignment'), tagMode);
             optionControls.tags_mode = tagMode;
 
-            var tags = A.el('input', { type: 'text', class: 'large-text' });
-            field(t('tagsLabel', 'Tags'), tags);
-            optionControls.tags = tags;
+            optionControls.docTagChips = A.el('div', { class: 'autodocs-import-doc-preview__chips' });
+            var docTagWrap = A.el('div', { class: 'autodocs-import-doc-preview autodocs-import-wizard__doc-tax-preview' });
+            docTagWrap.appendChild(
+                A.el('p', { class: 'description autodocs-import-doc-preview__label', text: t('docTagsFromMeta', 'From document (will be applied on save)') })
+            );
+            docTagWrap.appendChild(optionControls.docTagChips);
+            wrap.appendChild(docTagWrap);
+            optionControls.docTagWrap = docTagWrap;
+
+            var tagsInput = A.el('input', { type: 'text', class: 'large-text', value: d.tags || '' });
+            var tagManualWrap = A.el('div', { class: 'autodocs-import-wizard__option-field autodocs-import-wizard__manual-tags' });
+            tagManualWrap.appendChild(A.el('label', { text: t('tagsManual', 'Tags (comma-separated)') }));
+            tagManualWrap.appendChild(tagsInput);
+            wrap.appendChild(tagManualWrap);
+            optionControls.tags = tagsInput;
+            optionControls.tagManualWrap = tagManualWrap;
+
+            function syncTaxVisibility() {
+                var catDoc = catMode.value === 'doc';
+                var tagDoc = tagMode.value === 'doc';
+                A.showEl(optionControls.docCatWrap, catDoc);
+                A.showEl(optionControls.catManualWrap, !catDoc);
+                A.showEl(optionControls.docTagWrap, tagDoc);
+                A.showEl(optionControls.tagManualWrap, !tagDoc);
+            }
+            catMode.addEventListener('change', syncTaxVisibility);
+            tagMode.addEventListener('change', syncTaxVisibility);
+            syncTaxVisibility();
 
             var excerpt = A.el('label', { class: 'autodocs-import-wizard__check' });
             var excerptCb = A.el('input', { type: 'checkbox' });
@@ -393,25 +526,64 @@
 
             var move = A.el('label', { class: 'autodocs-import-wizard__check' });
             var moveCb = A.el('input', { type: 'checkbox' });
-            moveCb.checked = state.bucketKey === 'new';
+            moveCb.checked = state.bucketKey === 'new' && !!data.synced_bucket_set;
             move.appendChild(moveCb);
             move.appendChild(document.createTextNode(' ' + t('wizardMoveSynced', 'Move folder to Synced after import')));
             wrap.appendChild(move);
             optionControls.move_to_synced = moveCb;
         }
 
+        function syncDocTaxonomyPreview(data) {
+            if (!optionsBuilt || !data) {
+                return;
+            }
+            var docCats = data.doc_categories_preview || [];
+            var docTags = data.doc_tags_preview || [];
+            if (optionControls.docCatChips) {
+                optionControls.docCatChips.innerHTML = '';
+                if (docCats.length) {
+                    docCats.forEach(function (label) {
+                        optionControls.docCatChips.appendChild(
+                            A.el('span', { class: 'autodocs-import-doc-preview__chip', text: String(label) })
+                        );
+                    });
+                } else {
+                    optionControls.docCatChips.appendChild(
+                        A.el('span', { class: 'autodocs-import-doc-preview__empty', text: t('docMetaListEmpty', 'None listed in document meta for this field.') })
+                    );
+                }
+            }
+            if (optionControls.docTagChips) {
+                optionControls.docTagChips.innerHTML = '';
+                if (docTags.length) {
+                    docTags.forEach(function (label) {
+                        optionControls.docTagChips.appendChild(
+                            A.el('span', { class: 'autodocs-import-doc-preview__chip', text: String(label) })
+                        );
+                    });
+                } else {
+                    optionControls.docTagChips.appendChild(
+                        A.el('span', { class: 'autodocs-import-doc-preview__empty', text: t('docMetaListEmpty', 'None listed in document meta for this field.') })
+                    );
+                }
+            }
+        }
+
         function collectOptions() {
+            var catMode = optionControls.categories_mode ? optionControls.categories_mode.value : 'doc';
+            var tagMode = optionControls.tags_mode ? optionControls.tags_mode.value : 'doc';
             return {
                 post_type: optionControls.post_type ? optionControls.post_type.value : 'post',
                 post_status: optionControls.post_status ? optionControls.post_status.value : 'draft',
                 post_author: optionControls.post_author ? optionControls.post_author.value : '',
-                categories_mode: optionControls.categories_mode ? optionControls.categories_mode.value : 'doc',
-                tags_mode: optionControls.tags_mode ? optionControls.tags_mode.value : 'doc',
-                tags: optionControls.tags ? optionControls.tags.value : '',
+                categories_mode: catMode,
+                tags_mode: tagMode,
+                tags: tagMode === 'manual' && optionControls.tags ? optionControls.tags.value : '',
+                categories: catMode === 'manual' && optionControls.categories ? A.getMultiSelectValues(optionControls.categories) : [],
                 use_doc_excerpt: optionControls.use_doc_excerpt ? optionControls.use_doc_excerpt.checked : true,
                 move_to_synced: optionControls.move_to_synced ? optionControls.move_to_synced.checked : false,
-                acf_body_field: '',
-                acf_body_field_custom: ''
+                acf_body_field: optionControls.acf_body_field ? optionControls.acf_body_field.value : '',
+                acf_body_field_custom: optionControls.acf_body_field_custom ? optionControls.acf_body_field_custom.value : ''
             };
         }
 
@@ -458,22 +630,27 @@
                 els.progress.hidden = false;
                 els.progress.textContent = t('wizardImporting', 'Importing…');
             }
-            A.postFormUrlEncoded(AutoDocsPublisher.ajaxUrl, {
-                action: 'autodocs_bulk_import_folders',
-                nonce: AutoDocsPublisher.importNonce,
-                folder_ids: JSON.stringify(ids),
-                bucket_key: state.bucketKey === 'modified' ? 'synced' : state.bucketKey,
-                post_type: opts.post_type,
-                post_status: opts.post_status,
-                post_author: opts.post_author,
-                categories_mode: opts.categories_mode,
-                tags_mode: opts.tags_mode,
-                tags: opts.tags,
-                use_doc_excerpt: opts.use_doc_excerpt ? '1' : '',
-                move_to_synced: opts.move_to_synced ? '1' : '',
-                acf_body_field: opts.acf_body_field,
-                acf_body_field_custom: opts.acf_body_field_custom
-            })
+            var fd = new FormData();
+            fd.append('action', 'autodocs_bulk_import_folders');
+            fd.append('nonce', AutoDocsPublisher.importNonce);
+            fd.append('folder_ids', JSON.stringify(ids));
+            fd.append('bucket_key', state.bucketKey === 'modified' ? 'synced' : state.bucketKey);
+            fd.append('post_type', opts.post_type);
+            fd.append('post_status', opts.post_status);
+            fd.append('post_author', opts.post_author);
+            fd.append('categories_mode', opts.categories_mode);
+            fd.append('tags_mode', opts.tags_mode);
+            fd.append('tags', opts.tags);
+            fd.append('use_doc_excerpt', opts.use_doc_excerpt ? '1' : '');
+            fd.append('move_to_synced', opts.move_to_synced ? '1' : '');
+            fd.append('acf_body_field', opts.acf_body_field);
+            fd.append('acf_body_field_custom', opts.acf_body_field_custom);
+            if (opts.categories && opts.categories.length) {
+                opts.categories.forEach(function (cid) {
+                    fd.append('categories[]', cid);
+                });
+            }
+            A.postFormData(AutoDocsPublisher.ajaxUrl, fd)
                 .then(function (res) {
                     if (!res || !res.success) {
                         if (els.progress) {

@@ -655,7 +655,12 @@ final class AutoDocs_Sync_Import
             return '';
         }
 
-        return wp_kses_post(wp_trim_words($html, 400, '…'));
+        $html = wp_kses_post($html);
+        if (strlen($html) > 120000) {
+            $html = substr($html, 0, 120000) . '…';
+        }
+
+        return $html;
     }
 
     /**
