@@ -165,7 +165,7 @@ final class AutoDocs_Cron
      */
     public static function site_now_formatted()
     {
-        return wp_date(get_option('date_format') . ' ' . get_option('time_format'), time()) . ' (' . self::timezone_label() . ')';
+        return wp_date(get_option('time_format'), time()) . ' (' . self::timezone_label() . ')';
     }
 
     /**

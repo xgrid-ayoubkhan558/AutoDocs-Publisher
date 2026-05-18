@@ -279,43 +279,21 @@
         var enabled = A.qs('#autodocs-cron-enabled');
         var interval = A.qs('#autodocs-cron-interval');
         var timeInput = A.qs('#autodocs-cron-time');
-        var summary = A.qs('#autodocs-cron-schedule-summary');
         var timeRow = A.qs('#autodocs-cron-time-row');
-        var nextRunEl = A.qs('#autodocs-cron-next-run');
-        var nextRunRelative = A.qs('#autodocs-cron-next-run-relative');
+        var nextBlock = A.qs('#autodocs-cron-next-block');
+        var nextRunSite = A.qs('#autodocs-cron-next-run-site');
         var nextRunLocal = A.qs('#autodocs-cron-next-run-local');
-        var nextRunLocalRelative = A.qs('#autodocs-cron-next-run-local-relative');
-        var nextRunLocalRow = A.qs('#autodocs-cron-next-local-row');
-        var nextRunHint = A.qs('#autodocs-cron-next-run-hint');
-        var repeatLabelEl = A.qs('#autodocs-cron-repeat-label');
+        var nextRunRelative = A.qs('#autodocs-cron-next-run-relative');
         var computerNowEl = A.qs('#autodocs-cron-computer-now');
         var siteNowEl = A.qs('#autodocs-cron-site-now');
-        var tzWarn = A.qs('#autodocs-cron-tz-warn');
+        var footnote = A.qs('#autodocs-cron-footnote');
         var pub = typeof AutoDocsPublisher !== 'undefined' ? AutoDocsPublisher : {};
         var cron = pub.cron || {};
         var i18n = pub.i18n || {};
-        var intervalLabels = pub.cronIntervals || {};
+        var siteTz = section.getAttribute('data-timezone') || cron.siteTzIntl || 'UTC';
         var tzLabel = section.getAttribute('data-timezone-label') || cron.siteTzLabel || '';
         var previewTimer = null;
-        var tickTimer = null;
         var currentNextTs = parseInt(section.getAttribute('data-next-ts') || '0', 10);
-        var isEstimate = false;
-
-        function formatTpl(tpl) {
-            var args = Array.prototype.slice.call(arguments, 1);
-            var i = 0;
-            return tpl.replace(/%(\d+)\$s/g, function () {
-                return args[i++] !== undefined ? args[i - 1] : '';
-            });
-        }
-
-        function formatTplD(tpl) {
-            var args = Array.prototype.slice.call(arguments, 1);
-            var i = 0;
-            return tpl.replace(/%(\d+)\$d/g, function () {
-                return args[i++] !== undefined ? String(args[i - 1]) : '';
-            });
-        }
 
         function browserTimezoneLabel() {
             try {
@@ -325,37 +303,34 @@
             }
         }
 
-        function formatComputerNow() {
-            var tz = browserTimezoneLabel();
-            var label = tz;
-            if (!label) {
-                var off = -new Date().getTimezoneOffset() / 60;
-                label = 'UTC' + (off >= 0 ? '+' : '') + off;
-            }
+        function formatShort(ts, timeZone, zoneLabel) {
             try {
-                var formatted = new Intl.DateTimeFormat(undefined, {
+                var fmt = new Intl.DateTimeFormat(undefined, {
+                    timeZone: timeZone,
                     dateStyle: 'medium',
                     timeStyle: 'short'
-                }).format(new Date());
-                return formatted + ' (' + label + ')';
+                }).format(new Date(ts * 1000));
+                return zoneLabel ? fmt + ' (' + zoneLabel + ')' : fmt;
             } catch (err) {
-                return new Date().toLocaleString() + ' (' + label + ')';
+                return new Date(ts * 1000).toLocaleString();
             }
         }
 
-        function formatLocalTimestamp(ts) {
-            var tz = browserTimezoneLabel();
-            var label = tz || '';
-            try {
-                return (
-                    new Intl.DateTimeFormat(undefined, {
-                        dateStyle: 'medium',
-                        timeStyle: 'short'
-                    }).format(new Date(ts * 1000)) + (label ? ' (' + label + ')' : '')
-                );
-            } catch (err) {
-                return new Date(ts * 1000).toLocaleString() + (label ? ' (' + label + ')' : '');
+        function formatComputerNow() {
+            return formatShort(Math.floor(Date.now() / 1000), undefined, browserTimezoneLabel());
+        }
+
+        function sprintfNum(tpl, n, n2) {
+            if (!tpl) {
+                return '';
             }
+            var out = tpl;
+            if (n2 !== undefined) {
+                out = out.replace('%2$d', String(n2)).replace('%1$d', String(n));
+            } else {
+                out = out.replace('%1$d', String(n)).replace('%d', String(n));
+            }
+            return out;
         }
 
         function relativeUntil(ts) {
@@ -363,37 +338,48 @@
             if (diff <= 0) {
                 var ago = Math.abs(diff);
                 if (ago < 60) {
-                    return formatTplD(i18n.cronAgoSeconds || '%d seconds ago', ago);
+                    return sprintfNum(i18n.cronAgoSeconds || '%d seconds ago', ago);
                 }
-                return formatTplD(i18n.cronAgoMinutes || '%d minutes ago', Math.max(1, Math.round(ago / 60)));
+                return sprintfNum(i18n.cronAgoMinutes || '%d minutes ago', Math.max(1, Math.round(ago / 60)));
             }
             if (diff < 60) {
                 return diff < 30
                     ? i18n.cronInLessThanMinute || 'in less than a minute'
-                    : formatTplD(i18n.cronInSeconds || 'in %d seconds', diff);
+                    : sprintfNum(i18n.cronInSeconds || 'in %d seconds', diff);
             }
             if (diff < 3600) {
-                return formatTplD(i18n.cronInMinutes || 'in %d minutes', Math.max(1, Math.round(diff / 60)));
+                return sprintfNum(i18n.cronInMinutes || 'in %d minutes', Math.max(1, Math.round(diff / 60)));
             }
             if (diff < 86400) {
-                var hours = Math.floor(diff / 3600);
-                var mins = Math.round((diff % 3600) / 60);
-                return formatTplD(i18n.cronInHoursMinutes || 'in %1$d hours %2$d minutes', hours, mins);
+                return sprintfNum(
+                    i18n.cronInHoursMinutes || 'in %1$d hours %2$d minutes',
+                    Math.floor(diff / 3600),
+                    Math.round((diff % 3600) / 60)
+                );
             }
-            var days = Math.floor(diff / 86400);
-            var remHours = Math.round((diff % 86400) / 3600);
-            return formatTplD(i18n.cronInDaysHours || 'in %1$d days %2$d hours', days, remHours);
-        }
-
-        function repeatLabelForInterval(iv) {
-            var label = intervalLabels[iv] || '';
-            if (!label) {
-                return '';
-            }
-            return formatTpl(i18n.cronThenEvery || 'Then %s.', label.toLowerCase());
+            return sprintfNum(
+                i18n.cronInDaysHours || 'in %1$d days %2$d hours',
+                Math.floor(diff / 86400),
+                Math.round((diff % 86400) / 3600)
+            );
         }
 
         function applyNextRunState() {
+            if (!enabled || !enabled.checked) {
+                if (nextBlock) {
+                    nextBlock.hidden = true;
+                }
+                if (footnote) {
+                    footnote.hidden = true;
+                }
+                return;
+            }
+            if (nextBlock) {
+                nextBlock.hidden = false;
+            }
+            if (footnote) {
+                footnote.hidden = false;
+            }
             var rel = currentNextTs > 0 ? relativeUntil(currentNextTs) : '';
             if (nextRunRelative) {
                 if (rel) {
@@ -404,122 +390,45 @@
                     nextRunRelative.textContent = '';
                 }
             }
-            if (nextRunLocalRelative) {
-                nextRunLocalRelative.textContent = rel;
-            }
-            if (nextRunLocal && currentNextTs > 0) {
-                nextRunLocal.textContent = formatLocalTimestamp(currentNextTs);
-            }
-            if (nextRunLocalRow) {
-                nextRunLocalRow.hidden = !(currentNextTs > 0);
-            }
-            if (nextRunHint) {
-                nextRunHint.textContent = isEstimate
-                    ? i18n.cronNextRunEstimate || 'Estimated after you save settings.'
-                    : currentNextTs > 0
-                      ? i18n.cronNextRunScheduled || 'Currently scheduled.'
-                      : '';
+            if (currentNextTs > 0) {
+                if (nextRunSite) {
+                    nextRunSite.textContent = formatShort(currentNextTs, siteTz, tzLabel);
+                }
+                if (nextRunLocal) {
+                    nextRunLocal.textContent = formatShort(
+                        currentNextTs,
+                        browserTimezoneLabel() || undefined,
+                        browserTimezoneLabel()
+                    );
+                }
+            } else {
+                if (nextRunSite) {
+                    nextRunSite.textContent = '—';
+                }
+                if (nextRunLocal) {
+                    nextRunLocal.textContent = '—';
+                }
             }
         }
 
-        function tickClocks() {
+        function tick() {
             if (computerNowEl) {
                 computerNowEl.textContent = formatComputerNow();
             }
             applyNextRunState();
         }
 
-        function checkTimezoneMismatch() {
-            if (!tzWarn) {
-                return;
-            }
-            var siteOffsetHours = parseFloat(section.getAttribute('data-gmt-offset') || String(cron.gmtOffsetHours || 0));
-            var browserOffsetMin = -new Date().getTimezoneOffset();
-            var siteOffsetMin = Math.round(siteOffsetHours * 60);
-            if (Math.abs(browserOffsetMin - siteOffsetMin) <= 1) {
-                tzWarn.hidden = true;
-                tzWarn.textContent = '';
-                return;
-            }
-            var browserTz = browserTimezoneLabel();
-            var browserLabel = browserTz || 'UTC' + (browserOffsetMin >= 0 ? '+' : '') + browserOffsetMin / 60;
-            tzWarn.hidden = false;
-            tzWarn.textContent = formatTpl(
-                i18n.cronTzMismatch ||
-                    'Your computer uses %1$s, but WordPress is set to %2$s. Scheduled times use the WordPress timezone.',
-                browserLabel,
-                tzLabel
-            );
-        }
-
-        function clearNextRunUi() {
-            currentNextTs = 0;
-            isEstimate = false;
-            if (nextRunEl) {
-                nextRunEl.textContent =
-                    i18n.cronDisabled || 'Automatic sync is disabled.';
-            }
-            if (nextRunRelative) {
-                nextRunRelative.hidden = true;
-                nextRunRelative.textContent = '';
-            }
-            if (nextRunLocalRow) {
-                nextRunLocalRow.hidden = true;
-            }
-            if (nextRunHint) {
-                nextRunHint.textContent = '';
-            }
-            if (repeatLabelEl) {
-                repeatLabelEl.textContent = '';
-            }
-        }
-
-        function updateSummary() {
-            var iv = interval ? interval.value : 'hourly';
-            var showTime = iv === 'daily' || iv === 'twicedaily';
-            if (timeRow) {
-                timeRow.hidden = !showTime;
-            }
-            if (!summary) {
-                return;
-            }
-            if (!enabled || !enabled.checked) {
-                summary.textContent = i18n.cronDisabled || 'Automatic sync is disabled.';
-                clearNextRunUi();
-                return;
-            }
-            var text = '';
-            if (iv === 'daily' || iv === 'twicedaily') {
-                text =
-                    i18n.cronDailyHint ||
-                    'Time of day uses WordPress site time (see clocks above). Save settings to apply.';
-            } else {
-                var label = intervalLabels[iv] || iv;
-                text = formatTpl(
-                    i18n.cronInterval ||
-                        'Runs %1$s. Next run is about one minute after you save. Time of day applies only to daily schedules.',
-                    label.toLowerCase()
-                );
-            }
-            var note = i18n.cronWpNote || '';
-            summary.textContent = note ? text + ' ' + note : text;
-            if (repeatLabelEl) {
-                repeatLabelEl.textContent = repeatLabelForInterval(iv);
-            }
-        }
-
         function fetchPreview() {
-            if (!nextRunEl || typeof AutoDocsPublisher === 'undefined' || !AutoDocsPublisher.ajaxUrl) {
+            if (typeof AutoDocsPublisher === 'undefined' || !AutoDocsPublisher.ajaxUrl) {
                 return;
             }
-            var iv = interval ? interval.value : 'hourly';
             if (!enabled || !enabled.checked) {
                 return;
             }
             var body = new URLSearchParams();
             body.set('action', 'autodocs_cron_preview');
             body.set('nonce', AutoDocsPublisher.nonce);
-            body.set('interval', iv);
+            body.set('interval', interval ? interval.value : 'hourly');
             body.set('cron_time', timeInput ? timeInput.value : '03:00');
             body.set('enabled', '1');
 
@@ -536,47 +445,32 @@
                     if (!json || !json.success || !json.data) {
                         return;
                     }
-                    isEstimate = true;
-                    if (json.data.next_run) {
-                        nextRunEl.textContent = json.data.next_run;
-                    }
                     if (json.data.next_run_ts) {
                         currentNextTs = parseInt(json.data.next_run_ts, 10) || 0;
                     }
                     if (siteNowEl && json.data.site_now) {
                         siteNowEl.textContent = json.data.site_now;
                     }
-                    if (repeatLabelEl && json.data.repeat_label) {
-                        repeatLabelEl.textContent = json.data.repeat_label;
-                    }
                     applyNextRunState();
                 })
                 .catch(function () {});
         }
 
-        function schedulePreview() {
+        function update() {
+            var iv = interval ? interval.value : 'hourly';
+            if (timeRow) {
+                timeRow.hidden = iv !== 'daily' && iv !== 'twicedaily';
+            }
+            if (!enabled || !enabled.checked) {
+                applyNextRunState();
+                return;
+            }
             clearTimeout(previewTimer);
             previewTimer = setTimeout(fetchPreview, 200);
         }
 
-        function update() {
-            checkTimezoneMismatch();
-            updateSummary();
-            if (!enabled || !enabled.checked) {
-                return;
-            }
-            schedulePreview();
-        }
-
-        if (currentNextTs > 0) {
-            isEstimate = false;
-            applyNextRunState();
-        } else if (nextRunHint && enabled && enabled.checked) {
-            nextRunHint.textContent = i18n.cronNextRunEstimate || 'Estimated after you save settings.';
-        }
-
-        tickClocks();
-        tickTimer = setInterval(tickClocks, 1000);
+        tick();
+        setInterval(tick, 1000);
 
         [enabled, interval, timeInput].forEach(function (el) {
             if (el) {

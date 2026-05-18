@@ -596,83 +596,81 @@
     margin: 0 0 8px;
 }
 
-.autodocs-cron-settings__row {
+.autodocs-cron-settings__controls {
     align-items: center;
     display: flex;
     flex-wrap: wrap;
     gap: 8px 12px;
+    margin: 0 0 12px;
 }
 
-.autodocs-cron-settings__row--time input[type='time'] {
-    max-width: 140px;
+.autodocs-cron-settings__enable {
+    margin-right: 4px;
 }
 
-.autodocs-cron-settings__tz {
-    flex: 1 1 100%;
+.autodocs-cron-settings__at input[type='time'] {
+    max-width: 120px;
+}
+
+.autodocs-cron-settings__clocks,
+.autodocs-cron-settings__meta {
+    border-top: 1px solid #f0f0f1;
+    display: grid;
+    gap: 10px 24px;
+    grid-template-columns: 1fr 1fr;
+    margin: 0 0 10px;
+    padding: 12px 0 0;
+}
+
+.autodocs-cron-settings__meta {
+    grid-template-columns: 1fr;
+}
+
+.autodocs-cron-settings__clock {
     margin: 0;
 }
 
-.autodocs-cron-settings__schedule {
-    background: #f6f7f7;
-    border-left: 3px solid #2271b1;
-    margin: 12px 0 8px;
-    max-width: 640px;
-    padding: 10px 12px;
+.autodocs-cron-settings__clock dt {
+    color: #646970;
+    font-size: 12px;
+    font-weight: 600;
+    margin: 0 0 2px;
 }
 
-.autodocs-cron-settings__save-hint {
-    margin: 0 0 12px;
+.autodocs-cron-settings__clock dd {
+    font-size: 13px;
+    margin: 0;
 }
 
-.autodocs-cron-settings__clocks {
-    list-style: none;
-    margin: 0 0 12px;
-    padding: 0;
-}
-
-.autodocs-cron-settings__clocks li {
-    margin: 0 0 6px;
-}
-
-.autodocs-cron-settings__clocks a {
-    margin-left: 8px;
-}
-
-.autodocs-cron-settings__next-line {
-    margin: 0 0 6px;
+.autodocs-cron-settings__tz-link {
+    font-size: 12px;
+    margin-left: 6px;
 }
 
 .autodocs-cron-settings__relative {
     color: #2271b1;
-    display: inline-block;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     margin-left: 6px;
 }
 
-.autodocs-cron-settings__next-hint {
-    margin: 4px 0 6px;
-}
-
-.autodocs-cron-settings__repeat {
-    font-style: italic;
+.autodocs-cron-settings__next-grid {
+    display: grid;
+    gap: 6px 20px;
+    grid-template-columns: 1fr 1fr;
     margin: 0;
 }
 
-.autodocs-cron-settings__tz-warn {
-    margin: 0 0 12px;
-    max-width: 640px;
-    padding: 8px 12px;
+.autodocs-cron-settings__next-label {
+    color: #646970;
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
 }
 
-.autodocs-cron-settings__meta {
-    list-style: none;
-    margin: 12px 0 0;
-    padding: 0;
-}
-
-.autodocs-cron-settings__meta li {
-    margin-bottom: 4px;
+.autodocs-cron-settings__footnote {
+    margin: 0;
 }
 
 .autodocs-articles-table__td-last-synced {

@@ -41,10 +41,7 @@ trait AutoDocs_Admin_Ajax_Trait
 
         wp_send_json_success(
             array(
-                'next_run' => $ts > 0 ? AutoDocs_Cron::format_timestamp($ts) : '',
                 'next_run_ts' => $ts,
-                'next_run_relative' => $ts > 0 ? AutoDocs_Cron::relative_until_formatted($ts) : '',
-                'repeat_label' => $enabled ? AutoDocs_Cron::interval_repeat_label($interval) : '',
                 'site_now' => AutoDocs_Cron::site_now_formatted(),
             )
         );
