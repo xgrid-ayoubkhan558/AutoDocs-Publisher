@@ -94,6 +94,12 @@ final class AutoDocs_Admin_Localization
                 'previewThumb' => __('Featured preview', 'autodocs-publisher'),
                 'categoryColumn' => __('Categories (from doc)', 'autodocs-publisher'),
                 'lastSynced' => __('Last synced', 'autodocs-publisher'),
+                'lastSyncedCol' => __('Last synced', 'autodocs-publisher'),
+                'editPost' => __('Edit post', 'autodocs-publisher'),
+                'noRecentSyncs' => __('No synced posts yet.', 'autodocs-publisher'),
+                'syncNowRunning' => __('Syncing from Drive…', 'autodocs-publisher'),
+                'syncNowDone' => __('Sync complete.', 'autodocs-publisher'),
+                'syncNowFailed' => __('Sync failed.', 'autodocs-publisher'),
                 'categoriesFromDoc' => __('Use categories from document meta', 'autodocs-publisher'),
                 'categoriesManual' => __('Choose WordPress categories below', 'autodocs-publisher'),
                 'tagsFromDoc' => __('Use tags from document meta', 'autodocs-publisher'),
@@ -188,6 +194,7 @@ final class AutoDocs_Admin_Localization
                 'actions' => __('Actions', 'autodocs-publisher'),
                 'openInDrive' => __('Open in Drive', 'autodocs-publisher'),
                 'previewThumb' => __('Featured preview', 'autodocs-publisher'),
+                'noRecentSyncs' => __('No synced posts yet.', 'autodocs-publisher'),
             ),
         );
     }

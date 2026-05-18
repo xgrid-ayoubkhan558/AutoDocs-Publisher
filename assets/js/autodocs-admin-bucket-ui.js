@@ -247,12 +247,19 @@
                 );
 
                 var table = A.el('table', { class: 'widefat striped autodocs-articles-table' });
+                var showWpCols = bucketKey === 'synced' || listMode === 'modified';
                 var trh = A.el('tr');
                 trh.appendChild(A.el('th', { scope: 'col', class: 'autodocs-articles-table__th-check' }));
-                ['article', 'categoryColumn', 'actions'].forEach(function (colKey) {
+                var colKeys = ['article', 'categoryColumn'];
+                if (showWpCols) {
+                    colKeys.push('lastSynced');
+                }
+                colKeys.push('actions');
+                colKeys.forEach(function (colKey) {
                     var labels = {
                         article: ui.t('article', 'Article'),
                         categoryColumn: ui.t('categoryColumn', 'Categories (from doc)'),
+                        lastSynced: ui.t('lastSyncedCol', 'Last synced'),
                         actions: ui.t('actions', 'Actions')
                     };
                     trh.appendChild(A.el('th', { scope: 'col', text: labels[colKey] }));
@@ -287,7 +294,25 @@
                     artTd.appendChild(stack);
                     tr.appendChild(artTd);
                     tr.appendChild(A.el('td', { text: a.categories_display || '—' }));
+                    if (showWpCols) {
+                        tr.appendChild(
+                            A.el('td', {
+                                class: 'autodocs-articles-table__td-last-synced',
+                                text: a.last_synced_formatted || '—'
+                            })
+                        );
+                    }
                     var actTd = A.el('td', { class: 'autodocs-articles-table__td-actions' });
+                    if (showWpCols && a.edit_url) {
+                        actTd.appendChild(
+                            A.el('a', {
+                                class: 'button button-small',
+                                href: a.edit_url,
+                                text: ui.t('editPost', 'Edit post')
+                            })
+                        );
+                        actTd.appendChild(document.createTextNode(' '));
+                    }
                     if (a.web_view_link) {
                         actTd.appendChild(
                             A.el('a', {

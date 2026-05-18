@@ -92,6 +92,15 @@ class AutoDocs_Sync_Service
         $this->status->refresh_known_statuses();
     }
 
+    /**
+     * @param int $limit
+     * @return array<int, array{post_id: int, title: string, edit_url: string, last_synced_formatted: string, post_type: string}>
+     */
+    public function list_recent_synced_posts($limit = 10)
+    {
+        return $this->repository->list_recent_synced_posts($limit);
+    }
+
     public function list_bucket_articles_detailed($bucket_id, $bucket_label = '')
     {
         return $this->catalog->list_bucket_articles_detailed($bucket_id, $bucket_label);

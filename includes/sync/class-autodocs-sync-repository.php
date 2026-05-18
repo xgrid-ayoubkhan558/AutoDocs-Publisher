@@ -153,4 +153,47 @@ final class AutoDocs_Sync_Repository
 
         return (string) get_post_meta((int) $posts[0], AutoDocs_Sync_Meta::META_LAST_SYNCED, true);
     }
+
+    /**
+     * @param int $limit
+     * @return array<int, array{post_id: int, title: string, edit_url: string, last_synced_formatted: string, post_type: string}>
+     */
+    public function list_recent_synced_posts($limit = 10)
+    {
+        $limit = max(1, min(25, (int) $limit));
+
+        $posts = get_posts(
+            array(
+                'post_type' => 'any',
+                'post_status' => array('publish', 'draft', 'pending', 'private', 'future'),
+                'meta_key' => AutoDocs_Sync_Meta::META_LAST_SYNCED,
+                'orderby' => 'meta_value',
+                'order' => 'DESC',
+                'posts_per_page' => $limit,
+                'fields' => 'ids',
+            )
+        );
+
+        $out = array();
+        foreach ($posts as $post_id) {
+            $post_id = (int) $post_id;
+            if ($post_id <= 0) {
+                continue;
+            }
+            $last = (string) get_post_meta($post_id, AutoDocs_Sync_Meta::META_LAST_SYNCED, true);
+            $formatted = $last !== ''
+                ? (string) mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $last)
+                : '';
+            $edit = get_edit_post_link($post_id, 'raw');
+            $out[] = array(
+                'post_id' => $post_id,
+                'title' => get_the_title($post_id),
+                'edit_url' => $edit ? (string) $edit : '',
+                'last_synced_formatted' => $formatted,
+                'post_type' => get_post_type($post_id) ?: '',
+            );
+        }
+
+        return $out;
+    }
 }

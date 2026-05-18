@@ -33,6 +33,7 @@ trait AutoDocs_Admin_Ajax_Trait
             wp_send_json_error(array('message' => __('Permission denied.', 'autodocs-publisher')), 403);
         }
 
+        $this->sync_service->refresh_known_statuses();
         $result = $this->sync_service->sync_all(true);
         wp_send_json_success($result);
     }
@@ -335,6 +336,10 @@ trait AutoDocs_Admin_Ajax_Trait
             'email' => $email_str,
             'last_sync_formatted' => $this->sync_service->last_site_sync_formatted(),
         );
+
+        if (! empty($_POST['include_recent'])) {
+            $payload['recent_syncs'] = $this->sync_service->list_recent_synced_posts(12);
+        }
 
         $include_counts = ! empty($_POST['include_counts']);
         if ($include_counts) {

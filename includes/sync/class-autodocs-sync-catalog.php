@@ -284,6 +284,7 @@ final class AutoDocs_Sync_Catalog
         $pid = $this->repository->post_id_for_folder($folder_id);
         $last_wp = '';
         $last_wp_formatted = '';
+        $edit_url = '';
         if ($pid) {
             $last_wp = (string) get_post_meta($pid, AutoDocs_Sync_Meta::META_LAST_SYNCED, true);
             if ($last_wp !== '') {
@@ -292,6 +293,8 @@ final class AutoDocs_Sync_Catalog
                     $last_wp
                 );
             }
+            $edit = get_edit_post_link($pid, 'raw');
+            $edit_url = $edit ? (string) $edit : '';
         }
 
         return array(
@@ -307,6 +310,8 @@ final class AutoDocs_Sync_Catalog
             'categories_display' => $meta_cats,
             'last_synced_wp' => $last_wp,
             'last_synced_formatted' => $last_wp_formatted,
+            'post_id' => $pid,
+            'edit_url' => $edit_url,
         );
     }
 }

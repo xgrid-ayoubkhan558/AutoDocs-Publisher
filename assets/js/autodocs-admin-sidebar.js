@@ -18,6 +18,9 @@
         if (includeCounts) {
             payload.include_counts = '1';
         }
+        if (includeCounts) {
+            payload.include_recent = '1';
+        }
         A.postFormUrlEncoded(AutoDocsDashboard.ajaxUrl, payload).then(function (res) {
             if (!res || !res.success || !res.data) {
                 return;
@@ -81,6 +84,41 @@
                     });
                 }
             }
+            if (d.recent_syncs) {
+                A.renderRecentSyncsList(d.recent_syncs);
+            }
+        });
+    };
+
+    A.renderRecentSyncsList = function (items) {
+        var list = A.qs('#autodocs-recent-syncs-list');
+        if (!list) {
+            return;
+        }
+        list.innerHTML = '';
+        if (!items || !items.length) {
+            list.appendChild(
+                A.el('li', {
+                    class: 'description',
+                    text: (AutoDocsDashboard.i18n && AutoDocsDashboard.i18n.noRecentSyncs) || 'No synced posts yet.'
+                })
+            );
+            return;
+        }
+        items.forEach(function (row) {
+            var li = A.el('li', { class: 'autodocs-recent-syncs__item' });
+            if (row.edit_url) {
+                var link = A.el('a', { href: row.edit_url, text: row.title || '(no title)' });
+                li.appendChild(link);
+            } else {
+                li.appendChild(A.el('span', { text: row.title || '(no title)' }));
+            }
+            if (row.last_synced_formatted) {
+                li.appendChild(
+                    A.el('span', { class: 'autodocs-recent-syncs__time', text: row.last_synced_formatted })
+                );
+            }
+            list.appendChild(li);
         });
     };
 

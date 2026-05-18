@@ -5,6 +5,7 @@ if (!defined('ABSPATH')) {
 }
 
 require_once AUTODOCS_PUBLISHER_DIR . 'includes/class-autodocs-settings.php';
+require_once AUTODOCS_PUBLISHER_DIR . 'includes/class-autodocs-cron.php';
 require_once AUTODOCS_PUBLISHER_DIR . 'includes/class-autodocs-acf-helpers.php';
 require_once AUTODOCS_PUBLISHER_DIR . 'includes/class-autodocs-google-client.php';
 require_once AUTODOCS_PUBLISHER_DIR . 'includes/class-autodocs-sync-service.php';
@@ -32,10 +33,7 @@ final class AutoDocs_Plugin
     public static function activate()
     {
         AutoDocs_Settings::add_defaults();
-
-        if (!wp_next_scheduled(self::CRON_HOOK)) {
-            wp_schedule_event(time() + HOUR_IN_SECONDS, 'hourly', self::CRON_HOOK);
-        }
+        AutoDocs_Cron::reschedule();
     }
 
     public static function deactivate()
@@ -50,6 +48,33 @@ final class AutoDocs_Plugin
         $this->sync_service = new AutoDocs_Sync_Service($this->settings, $this->google_client);
         $this->admin = new AutoDocs_Admin($this->settings, $this->google_client, $this->sync_service);
 
-        add_action(self::CRON_HOOK, array($this->sync_service, 'sync_all_configured_folders'));
+        add_filter('cron_schedules', array('AutoDocs_Cron', 'add_schedules'));
+        add_action(self::CRON_HOOK, array($this, 'run_scheduled_cron'));
+        add_action('update_option_' . AutoDocs_Settings::OPTION_NAME, array($this, 'reschedule_cron_after_settings_save'), 10, 2);
+        add_action('init', array($this, 'maybe_ensure_cron_scheduled'));
+    }
+
+    public function maybe_ensure_cron_scheduled()
+    {
+        if ($this->settings->get('cron_enabled', '') !== '1') {
+            return;
+        }
+        if (! wp_next_scheduled(self::CRON_HOOK)) {
+            AutoDocs_Cron::reschedule($this->settings);
+        }
+    }
+
+    public function run_scheduled_cron()
+    {
+        AutoDocs_Cron::run_scheduled_sync($this->sync_service, $this->google_client, $this->settings);
+    }
+
+    /**
+     * @param mixed $old_value
+     * @param mixed $value
+     */
+    public function reschedule_cron_after_settings_save($old_value, $value)
+    {
+        AutoDocs_Cron::reschedule($this->settings);
     }
 }

@@ -21,6 +21,8 @@ class AutoDocs_Settings
             'folder_modified' => '',
             'acf_body_field' => '',
             'folder_missing' => '',
+            'cron_enabled' => '1',
+            'cron_interval' => 'hourly',
         );
 
         if (false === get_option(self::OPTION_NAME, false)) {
@@ -63,7 +65,21 @@ class AutoDocs_Settings
                 ? $this->sanitize_acf_body_field_input($input)
                 : (isset($existing['acf_body_field']) ? (string) $existing['acf_body_field'] : ''),
             'folder_missing' => isset($input['folder_missing']) ? sanitize_text_field($input['folder_missing']) : '',
+            'cron_enabled' => ! empty($input['cron_enabled']) ? '1' : '',
+            'cron_interval' => $this->sanitize_cron_interval(isset($input['cron_interval']) ? $input['cron_interval'] : ''),
         );
+    }
+
+    /**
+     * @param mixed $value
+     * @return string
+     */
+    private function sanitize_cron_interval($value)
+    {
+        $allowed = array_keys(AutoDocs_Cron::interval_choices());
+        $value = is_string($value) ? sanitize_key($value) : '';
+
+        return in_array($value, $allowed, true) ? $value : 'hourly';
     }
 
     public function all()
@@ -78,6 +94,8 @@ class AutoDocs_Settings
             'folder_modified' => '',
             'acf_body_field' => '',
             'folder_missing' => '',
+            'cron_enabled' => '1',
+            'cron_interval' => 'hourly',
         ));
     }
 

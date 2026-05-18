@@ -222,6 +222,11 @@ class AutoDocs_Admin
         $acf_body_use_custom = ($acf_body_field !== '' && ! in_array($acf_body_field, $acf_choice_values, true));
         $acf_select_value = $acf_body_use_custom ? AutoDocs_Acf_Helpers::SELECT_CUSTOM_VALUE : $acf_body_field;
 
+        $cron_enabled = isset($settings['cron_enabled']) && $settings['cron_enabled'] === '1';
+        $cron_interval = isset($settings['cron_interval']) ? (string) $settings['cron_interval'] : 'hourly';
+        $cron_next_run = $cron_enabled ? AutoDocs_Cron::next_run_formatted() : '';
+        $cron_last_run = AutoDocs_Cron::last_run_formatted();
+
         include AUTODOCS_PUBLISHER_DIR . 'includes/admin/views/settings-page.php';
     }
 }

@@ -196,6 +196,56 @@
                 });
             }
 
+            var syncNowBtn = A.qs('#autodocs-sync-now');
+            var syncNowStatus = A.qs('#autodocs-sync-now-status');
+            if (syncNowBtn && typeof AutoDocsPublisher !== 'undefined') {
+                syncNowBtn.addEventListener('click', function () {
+                    syncNowBtn.disabled = true;
+                    if (syncNowStatus) {
+                        syncNowStatus.textContent =
+                            (AutoDocsPublisher.i18n && AutoDocsPublisher.i18n.syncNowRunning) || 'Syncing…';
+                    }
+                    A.postFormUrlEncoded(AutoDocsPublisher.ajaxUrl, {
+                        action: 'autodocs_sync_now',
+                        nonce: AutoDocsPublisher.nonce
+                    })
+                        .then(function (res) {
+                            if (!res || !res.success) {
+                                if (syncNowStatus) {
+                                    syncNowStatus.textContent =
+                                        (res && res.data && res.data.message) ||
+                                        (AutoDocsPublisher.i18n && AutoDocsPublisher.i18n.syncNowFailed) ||
+                                        'Sync failed.';
+                                }
+                                return;
+                            }
+                            var d = res.data || {};
+                            if (syncNowStatus) {
+                                syncNowStatus.textContent =
+                                    (AutoDocsPublisher.i18n && AutoDocsPublisher.i18n.syncNowDone) ||
+                                    'Sync complete. Created: ' +
+                                        String(d.created || 0) +
+                                        ', updated: ' +
+                                        String(d.updated || 0) +
+                                        ', skipped: ' +
+                                        String(d.skipped || 0);
+                            }
+                            bucketUi.panelPages = { new: 1, synced: 1, modified: 1 };
+                            bucketUi.refreshAllArticlePanels(true);
+                            A.refreshDashboardSidebar(true);
+                        })
+                        .catch(function () {
+                            if (syncNowStatus) {
+                                syncNowStatus.textContent =
+                                    (AutoDocsPublisher.i18n && AutoDocsPublisher.i18n.syncNowFailed) || 'Sync failed.';
+                            }
+                        })
+                        .finally(function () {
+                            syncNowBtn.disabled = false;
+                        });
+                });
+            }
+
             if (settingsWrap) {
                 settingsWrap.addEventListener('change', function (e) {
                     var sel = e.target.closest('.autodocs-bucket-select');

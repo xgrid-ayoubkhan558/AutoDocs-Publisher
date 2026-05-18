@@ -21,6 +21,9 @@ final class AutoDocs_Sync_Meta
     /** Site-wide timestamp (mysql) updated when bulk sync completes. */
     public const OPTION_LAST_SITE_SYNC = 'autodocs_publisher_last_site_sync';
 
+    /** Timestamp (mysql) when the scheduled cron job last ran. */
+    public const OPTION_LAST_CRON_RUN = 'autodocs_publisher_last_cron_run';
+
     public const MIME_DOC = 'application/vnd.google-apps.document';
     public const MIME_FOLDER = 'application/vnd.google-apps.folder';
 }
