@@ -139,7 +139,11 @@
                         currentOg.label = grp;
                         acfSelect.appendChild(currentOg);
                     }
-                    currentOg.appendChild(A.el('option', { value: String(row.value), text: String(row.label) }));
+                    var opt = A.el('option', { value: String(row.value), text: String(row.label) });
+                    if (row.name) {
+                        opt.setAttribute('data-field-name', String(row.name));
+                    }
+                    currentOg.appendChild(opt);
                 });
             }
             acfSelect.appendChild(A.el('option', { value: cv, text: t('importAcfOther', 'Other field key or name…') }));
@@ -149,15 +153,16 @@
             acfCustom.style.display = acfSelect.value === cv ? '' : 'none';
         }
 
-        refillAcfSelectOptions(data.acf_body_field_choices || []);
-
-        if (
-            !A.applyAcfBodyFieldDefault(acfSelect, acfCustom, cv, defAcf, defAcfCustom)
-        ) {
-            if (!setAcfBodySelectValue(acfSelect, defAcf)) {
+        function applyAcfForCurrentPostType(serverDef, serverCustom) {
+            var pt = (ptypeSelect.value || 'post').trim() || 'post';
+            if (!A.applyAcfDefaultForPostType(acfSelect, acfCustom, cv, pt, serverDef || '', serverCustom || '')) {
                 setAcfBodySelectValue(acfSelect, '');
+                acfCustom.value = '';
             }
         }
+
+        refillAcfSelectOptions(data.acf_body_field_choices || []);
+        applyAcfForCurrentPostType(defAcf, defAcfCustom);
         syncAcfCustomVisibility();
         acfSelect.addEventListener('change', function () {
             if (acfSelect.value !== cv) {
@@ -179,16 +184,15 @@
             })
                 .then(function (res) {
                     if (!res || !res.success || !res.data) {
+                        applyAcfForCurrentPostType('', '');
+                        syncAcfCustomVisibility();
                         return;
                     }
                     if (typeof res.data.acf_select_custom_value === 'string' && res.data.acf_select_custom_value !== '') {
                         cv = res.data.acf_select_custom_value;
                     }
                     refillAcfSelectOptions(res.data.acf_body_field_choices || []);
-                    A.applyAcfBodyFieldDefault(
-                        acfSelect,
-                        acfCustom,
-                        cv,
+                    applyAcfForCurrentPostType(
                         res.data.default_acf_body_field || '',
                         res.data.default_acf_body_field_custom || ''
                     );

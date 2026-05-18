@@ -38,6 +38,8 @@ final class AutoDocs_Admin_Localization
             'redirectUri' => $settings->redirect_uri(),
             'currentUserId' => get_current_user_id(),
             'authors' => $authors,
+            'acfImportDefaults' => AutoDocs_Acf_Helpers::import_body_field_map(),
+            'acfSelectCustomValue' => AutoDocs_Acf_Helpers::SELECT_CUSTOM_VALUE,
             'i18n' => array(
                 'browseDrive' => __('Browse Drive…', 'autodocs-publisher'),
                 'up' => __('Up', 'autodocs-publisher'),

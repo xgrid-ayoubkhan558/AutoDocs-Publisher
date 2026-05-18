@@ -539,16 +539,27 @@ final class AutoDocs_Sync_Import
         if ($sel === AutoDocs_Acf_Helpers::SELECT_SITE_DEFAULT_VALUE) {
             return $this->get_acf_body_field_name();
         }
-        if ($sel === '') {
-            return '';
-        }
         if ($sel === AutoDocs_Acf_Helpers::SELECT_CUSTOM_VALUE) {
-            return isset($input['acf_body_field_custom'])
+            $custom = isset($input['acf_body_field_custom'])
                 ? sanitize_text_field((string) $input['acf_body_field_custom'])
                 : '';
+            if ($custom !== '') {
+                return $custom;
+            }
+            $sel = '';
+        }
+        if ($sel !== '') {
+            return $sel;
         }
 
-        return $sel;
+        $pt = isset($input['post_type']) ? sanitize_key((string) $input['post_type']) : 'post';
+        if ($pt === '' || ! post_type_exists($pt)) {
+            $pt = 'post';
+        }
+        $choices = AutoDocs_Acf_Helpers::list_body_target_fields($pt);
+        $def = AutoDocs_Acf_Helpers::resolve_body_field_for_import($pt, $choices);
+
+        return AutoDocs_Acf_Helpers::body_field_name_from_selection($def);
     }
 
     /**

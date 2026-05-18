@@ -147,29 +147,89 @@
         if (defField === '' && defCustom === '') {
             return false;
         }
-        var found = false;
-        var opts = select.querySelectorAll('option');
-        for (var i = 0; i < opts.length; i++) {
-            opts[i].selected = opts[i].value === defField;
-            if (opts[i].selected) {
-                found = true;
-            }
-        }
-        if (!found) {
-            if (defField === customOptionValue || defCustom !== '') {
-                select.value = customOptionValue;
-                if (customInput) {
-                    customInput.value = defCustom !== '' ? defCustom : defField;
-                }
-                found = true;
-            } else if (defField !== '') {
+        var i;
+        var opts = select.options;
+        for (i = 0; i < opts.length; i++) {
+            if (opts[i].value === defField) {
                 select.value = defField;
-                found = select.value === defField;
+                if (customInput) {
+                    customInput.value = defField === customOptionValue ? defCustom : '';
+                }
+                return true;
             }
-        } else if (customInput) {
-            customInput.value = defField === customOptionValue ? defCustom : '';
         }
-        return found;
+        if (defCustom !== '') {
+            for (i = 0; i < opts.length; i++) {
+                if (opts[i].getAttribute('data-field-name') === defCustom) {
+                    select.value = opts[i].value;
+                    if (customInput) {
+                        customInput.value = '';
+                    }
+                    return true;
+                }
+            }
+        }
+        if (defField === customOptionValue || defCustom !== '') {
+            for (i = 0; i < opts.length; i++) {
+                if (opts[i].value === customOptionValue) {
+                    select.value = customOptionValue;
+                    if (customInput) {
+                        customInput.value = defCustom !== '' ? defCustom : defField;
+                    }
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+
+    /**
+     * @param {HTMLSelectElement} select
+     * @param {HTMLInputElement|null} customInput
+     * @param {string} customOptionValue
+     * @param {string} postType
+     * @param {string} serverDef
+     * @param {string} serverCustom
+     * @returns {boolean}
+     */
+    A.applyAcfDefaultForPostType = function (select, customInput, customOptionValue, postType, serverDef, serverCustom) {
+        if (A.applyAcfBodyFieldDefault(select, customInput, customOptionValue, serverDef || '', serverCustom || '')) {
+            return true;
+        }
+        var map =
+            typeof AutoDocsPublisher !== 'undefined' && AutoDocsPublisher.acfImportDefaults
+                ? AutoDocsPublisher.acfImportDefaults
+                : {};
+        var target = map[postType] || '';
+        if (!target) {
+            return false;
+        }
+        return A.applyAcfBodyFieldDefault(select, customInput, customOptionValue, '', target);
+    };
+
+    A.appendAcfBodySelectOption = function (select, row, groupLabelFallback) {
+        var grp = row.group != null && row.group !== '' ? String(row.group) : groupLabelFallback;
+        var og = null;
+        var children = select.children;
+        var i;
+        for (i = 0; i < children.length; i++) {
+            if (children[i].tagName === 'OPTGROUP' && children[i].label === grp) {
+                og = children[i];
+                break;
+            }
+        }
+        if (!og) {
+            og = document.createElement('optgroup');
+            og.label = grp;
+            select.appendChild(og);
+        }
+        var opt = document.createElement('option');
+        opt.value = String(row.value);
+        opt.textContent = String(row.label);
+        if (row.name) {
+            opt.setAttribute('data-field-name', String(row.name));
+        }
+        og.appendChild(opt);
     };
 
     A.domReady = function (fn) {

@@ -442,17 +442,29 @@
                 autocomplete: 'off',
                 placeholder: t('importAcfOtherPlaceholder', 'ACF field key or name')
             });
-            acfSelect.appendChild(A.el('option', { value: '', text: t('importPostContentOnly', 'Post content (editor) only') }));
-            (data.acf_body_field_choices || []).forEach(function (row) {
-                acfSelect.appendChild(A.el('option', { value: String(row.value), text: String(row.label) }));
-            });
-            acfSelect.appendChild(A.el('option', { value: cv, text: t('importAcfOther', 'Other field key or name…') }));
+            function refillAcfOptions(choices) {
+                acfSelect.innerHTML = '';
+                acfSelect.appendChild(A.el('option', { value: '', text: t('importPostContentOnly', 'Post content (editor) only') }));
+                (choices || []).forEach(function (row) {
+                    var opt = A.el('option', { value: String(row.value), text: String(row.label) });
+                    if (row.name) {
+                        opt.setAttribute('data-field-name', String(row.name));
+                    }
+                    acfSelect.appendChild(opt);
+                });
+                acfSelect.appendChild(A.el('option', { value: cv, text: t('importAcfOther', 'Other field key or name…') }));
+            }
+            refillAcfOptions(data.acf_body_field_choices || []);
             function syncAcfCustom() {
                 acfCustom.style.display = acfSelect.value === cv ? '' : 'none';
             }
-            A.applyAcfBodyFieldDefault(acfSelect, acfCustom, cv, d.acf_body_field || '', d.acf_body_field_custom || '');
+            function applyAcfForCurrentPostType(serverDef, serverCustom) {
+                var pt = (ptype.value || 'post').trim() || 'post';
+                A.applyAcfDefaultForPostType(acfSelect, acfCustom, cv, pt, serverDef || '', serverCustom || '');
+                syncAcfCustom();
+            }
+            applyAcfForCurrentPostType(d.acf_body_field, d.acf_body_field_custom);
             acfSelect.addEventListener('change', syncAcfCustom);
-            syncAcfCustom();
             var acfWrap = A.el('div', { class: 'autodocs-import-wizard__option-field autodocs-import-wizard__option-field--acf' });
             acfWrap.appendChild(A.el('label', { text: t('importBodyTargetLabel', 'Imported HTML goes to') }));
             acfWrap.appendChild(acfSelect);
@@ -461,7 +473,7 @@
             optionControls.acf_body_field = acfSelect;
             optionControls.acf_body_field_custom = acfCustom;
 
-            ptype.addEventListener('change', function () {
+            function refreshAcfForPostType() {
                 var pt = (ptype.value || 'post').trim() || 'post';
                 A.postFormUrlEncoded(AutoDocsPublisher.ajaxUrl, {
                     action: 'autodocs_import_acf_body_choices',
@@ -469,27 +481,31 @@
                     post_type: pt
                 }).then(function (res) {
                     if (!res || !res.success || !res.data) {
+                        applyAcfForCurrentPostType('', '');
                         return;
                     }
                     if (typeof res.data.acf_select_custom_value === 'string' && res.data.acf_select_custom_value !== '') {
                         cv = res.data.acf_select_custom_value;
                     }
-                    acfSelect.innerHTML = '';
-                    acfSelect.appendChild(A.el('option', { value: '', text: t('importPostContentOnly', 'Post content (editor) only') }));
-                    (res.data.acf_body_field_choices || []).forEach(function (row) {
-                        acfSelect.appendChild(A.el('option', { value: String(row.value), text: String(row.label) }));
-                    });
-                    acfSelect.appendChild(A.el('option', { value: cv, text: t('importAcfOther', 'Other field key or name…') }));
-                    A.applyAcfBodyFieldDefault(
-                        acfSelect,
-                        acfCustom,
-                        cv,
+                    refillAcfOptions(res.data.acf_body_field_choices || []);
+                    applyAcfForCurrentPostType(
                         res.data.default_acf_body_field || '',
                         res.data.default_acf_body_field_custom || ''
                     );
-                    syncAcfCustom();
                 });
-            });
+            }
+            var acfPtTimer = null;
+            function scheduleAcfRefresh() {
+                if (acfPtTimer) {
+                    clearTimeout(acfPtTimer);
+                }
+                acfPtTimer = setTimeout(function () {
+                    acfPtTimer = null;
+                    refreshAcfForPostType();
+                }, 150);
+            }
+            ptype.addEventListener('change', scheduleAcfRefresh);
+            ptype.addEventListener('input', scheduleAcfRefresh);
 
             optionControls.docCatChips = A.el('div', { class: 'autodocs-import-doc-preview__chips' });
             var docCatWrap = A.el('div', { class: 'autodocs-import-doc-preview autodocs-import-wizard__doc-tax-preview' });
