@@ -151,8 +151,12 @@
 
         refillAcfSelectOptions(data.acf_body_field_choices || []);
 
-        if (!setAcfBodySelectValue(acfSelect, defAcf)) {
-            setAcfBodySelectValue(acfSelect, '');
+        if (
+            !A.applyAcfBodyFieldDefault(acfSelect, acfCustom, cv, defAcf, defAcfCustom)
+        ) {
+            if (!setAcfBodySelectValue(acfSelect, defAcf)) {
+                setAcfBodySelectValue(acfSelect, '');
+            }
         }
         syncAcfCustomVisibility();
         acfSelect.addEventListener('change', function () {
@@ -167,8 +171,6 @@
                 return;
             }
             var pt = (ptypeSelect.value || 'post').trim() || 'post';
-            var prevVal = acfSelect.value;
-            var prevCustom = acfCustom.value;
             acfSelect.disabled = true;
             A.postFormUrlEncoded(AutoDocsPublisher.ajaxUrl, {
                 action: 'autodocs_import_acf_body_choices',
@@ -183,17 +185,13 @@
                         cv = res.data.acf_select_custom_value;
                     }
                     refillAcfSelectOptions(res.data.acf_body_field_choices || []);
-                    if (!setAcfBodySelectValue(acfSelect, prevVal)) {
-                        if (prevVal === cv) {
-                            setAcfBodySelectValue(acfSelect, cv);
-                            acfCustom.value = prevCustom;
-                        } else {
-                            setAcfBodySelectValue(acfSelect, '');
-                            acfCustom.value = '';
-                        }
-                    } else {
-                        acfCustom.value = prevCustom;
-                    }
+                    A.applyAcfBodyFieldDefault(
+                        acfSelect,
+                        acfCustom,
+                        cv,
+                        res.data.default_acf_body_field || '',
+                        res.data.default_acf_body_field_custom || ''
+                    );
                     syncAcfCustomVisibility();
                 })
                 .catch(function () {})

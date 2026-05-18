@@ -130,6 +130,48 @@
         });
     };
 
+    /**
+     * @param {HTMLSelectElement} select
+     * @param {HTMLInputElement} customInput
+     * @param {string} customOptionValue
+     * @param {string} defField
+     * @param {string} defCustom
+     * @returns {boolean}
+     */
+    A.applyAcfBodyFieldDefault = function (select, customInput, customOptionValue, defField, defCustom) {
+        if (!select) {
+            return false;
+        }
+        defField = defField == null ? '' : String(defField);
+        defCustom = defCustom == null ? '' : String(defCustom);
+        if (defField === '' && defCustom === '') {
+            return false;
+        }
+        var found = false;
+        var opts = select.querySelectorAll('option');
+        for (var i = 0; i < opts.length; i++) {
+            opts[i].selected = opts[i].value === defField;
+            if (opts[i].selected) {
+                found = true;
+            }
+        }
+        if (!found) {
+            if (defField === customOptionValue || defCustom !== '') {
+                select.value = customOptionValue;
+                if (customInput) {
+                    customInput.value = defCustom !== '' ? defCustom : defField;
+                }
+                found = true;
+            } else if (defField !== '') {
+                select.value = defField;
+                found = select.value === defField;
+            }
+        } else if (customInput) {
+            customInput.value = defField === customOptionValue ? defCustom : '';
+        }
+        return found;
+    };
+
     A.domReady = function (fn) {
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', fn);

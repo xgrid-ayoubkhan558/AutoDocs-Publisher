@@ -175,6 +175,105 @@ final class AutoDocs_Acf_Helpers
     }
 
     /**
+     * Default ACF field (name or key) for imported HTML per post type.
+     *
+     * @return array<string, string> Post type slug => field name/key.
+     */
+    public static function import_body_field_map()
+    {
+        $map = array(
+            'post' => 'paragraph_content_to_the_left_of_sidebar',
+            'success-stories' => 'add_success_story_detail_description',
+            'webinars' => 'why_this_webinar-paragraph',
+            'podcasts' => 'detail_description',
+            'xgrid-talks' => 'detail_description',
+            'white-papers' => 'main_content',
+            'wiki' => 'detail_description',
+        );
+
+        /**
+         * @param array<string, string> $map
+         * @return array<string, string>
+         */
+        return apply_filters('autodocs_import_acf_body_field_by_post_type', $map);
+    }
+
+    /**
+     * @param string $post_type
+     * @return string Field name/key, or empty when no mapping.
+     */
+    public static function default_body_field_for_post_type($post_type)
+    {
+        $pt = sanitize_key((string) $post_type);
+        if ($pt === '' || ! post_type_exists($pt)) {
+            $pt = 'post';
+        }
+        $map = self::import_body_field_map();
+
+        return isset($map[$pt]) ? (string) $map[$pt] : '';
+    }
+
+    /**
+     * Resolve import UI selection for "Imported HTML goes to" from post-type defaults.
+     *
+     * @param string $post_type
+     * @param array<int, array{value: string, label: string, group: string}> $choices
+     * @return array{acf_body_field: string, acf_body_field_custom: string}
+     */
+    public static function resolve_body_field_for_import($post_type, array $choices)
+    {
+        $empty = array(
+            'acf_body_field' => '',
+            'acf_body_field_custom' => '',
+        );
+
+        $target = self::default_body_field_for_post_type($post_type);
+        if ($target === '') {
+            return $empty;
+        }
+
+        $vals = self::choice_values($choices);
+        if (in_array($target, $vals, true)) {
+            return array(
+                'acf_body_field' => $target,
+                'acf_body_field_custom' => '',
+            );
+        }
+
+        if (function_exists('acf_get_field')) {
+            $field = acf_get_field($target);
+            if (is_array($field) && ! empty($field['key'])) {
+                $key = (string) $field['key'];
+                if (in_array($key, $vals, true)) {
+                    return array(
+                        'acf_body_field' => $key,
+                        'acf_body_field_custom' => '',
+                    );
+                }
+            }
+        }
+
+        foreach ($choices as $row) {
+            if (! is_array($row) || empty($row['value'])) {
+                continue;
+            }
+            $value = (string) $row['value'];
+            $label = isset($row['label']) ? (string) $row['label'] : '';
+            if ($value === $target || $label === $target) {
+                return array(
+                    'acf_body_field' => $value,
+                    'acf_body_field_custom' => '',
+                );
+            }
+        }
+
+        return array(
+            'acf_body_field' => self::SELECT_CUSTOM_VALUE,
+            'acf_body_field_custom' => $target,
+        );
+    }
+
+    /**
      * @param array<int, array{value: string, label: string, group: string}> $choices
      * @return string[]
      */

@@ -447,20 +447,10 @@
                 acfSelect.appendChild(A.el('option', { value: String(row.value), text: String(row.label) }));
             });
             acfSelect.appendChild(A.el('option', { value: cv, text: t('importAcfOther', 'Other field key or name…') }));
-            var defAcf = d.acf_body_field || '';
-            var foundAcf = false;
-            A.qsa('option', acfSelect).forEach(function (o) {
-                if (o.value === defAcf) {
-                    o.selected = true;
-                    foundAcf = true;
-                }
-            });
-            if (!foundAcf && defAcf === cv) {
-                acfSelect.value = cv;
-            }
             function syncAcfCustom() {
                 acfCustom.style.display = acfSelect.value === cv ? '' : 'none';
             }
+            A.applyAcfBodyFieldDefault(acfSelect, acfCustom, cv, d.acf_body_field || '', d.acf_body_field_custom || '');
             acfSelect.addEventListener('change', syncAcfCustom);
             syncAcfCustom();
             var acfWrap = A.el('div', { class: 'autodocs-import-wizard__option-field autodocs-import-wizard__option-field--acf' });
@@ -481,14 +471,22 @@
                     if (!res || !res.success || !res.data) {
                         return;
                     }
-                    var prev = acfSelect.value;
+                    if (typeof res.data.acf_select_custom_value === 'string' && res.data.acf_select_custom_value !== '') {
+                        cv = res.data.acf_select_custom_value;
+                    }
                     acfSelect.innerHTML = '';
                     acfSelect.appendChild(A.el('option', { value: '', text: t('importPostContentOnly', 'Post content (editor) only') }));
                     (res.data.acf_body_field_choices || []).forEach(function (row) {
                         acfSelect.appendChild(A.el('option', { value: String(row.value), text: String(row.label) }));
                     });
                     acfSelect.appendChild(A.el('option', { value: cv, text: t('importAcfOther', 'Other field key or name…') }));
-                    acfSelect.value = prev;
+                    A.applyAcfBodyFieldDefault(
+                        acfSelect,
+                        acfCustom,
+                        cv,
+                        res.data.default_acf_body_field || '',
+                        res.data.default_acf_body_field_custom || ''
+                    );
                     syncAcfCustom();
                 });
             });

@@ -123,10 +123,13 @@ trait AutoDocs_Admin_Ajax_Trait
         }
 
         $choices = AutoDocs_Acf_Helpers::list_body_target_fields($pt);
+        $def_acf = AutoDocs_Acf_Helpers::resolve_body_field_for_import($pt, $choices);
 
         wp_send_json_success(array(
             'acf_body_field_choices' => $choices,
             'acf_select_custom_value' => AutoDocs_Acf_Helpers::SELECT_CUSTOM_VALUE,
+            'default_acf_body_field' => $def_acf['acf_body_field'],
+            'default_acf_body_field_custom' => $def_acf['acf_body_field_custom'],
         ));
     }
 

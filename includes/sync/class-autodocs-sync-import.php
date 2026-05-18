@@ -256,14 +256,17 @@ final class AutoDocs_Sync_Import
 
         $acf_choices = AutoDocs_Acf_Helpers::list_body_target_fields($ptype);
         $acf_vals = AutoDocs_Acf_Helpers::choice_values($acf_choices);
-        $site_acf = trim((string) $this->settings->get('acf_body_field', ''));
-        $def_acf_sel = '';
-        $def_acf_custom = '';
-        if ($site_acf !== '' && in_array($site_acf, $acf_vals, true)) {
-            $def_acf_sel = $site_acf;
-        } elseif ($site_acf !== '') {
-            $def_acf_sel = AutoDocs_Acf_Helpers::SELECT_CUSTOM_VALUE;
-            $def_acf_custom = $site_acf;
+        $def_acf = AutoDocs_Acf_Helpers::resolve_body_field_for_import($ptype, $acf_choices);
+        $def_acf_sel = $def_acf['acf_body_field'];
+        $def_acf_custom = $def_acf['acf_body_field_custom'];
+        if ($def_acf_sel === '' && $def_acf_custom === '') {
+            $site_acf = trim((string) $this->settings->get('acf_body_field', ''));
+            if ($site_acf !== '' && in_array($site_acf, $acf_vals, true)) {
+                $def_acf_sel = $site_acf;
+            } elseif ($site_acf !== '') {
+                $def_acf_sel = AutoDocs_Acf_Helpers::SELECT_CUSTOM_VALUE;
+                $def_acf_custom = $site_acf;
+            }
         }
 
         return array(
