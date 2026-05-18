@@ -33,7 +33,7 @@ final class AutoDocs_Plugin
     public static function activate()
     {
         AutoDocs_Settings::add_defaults();
-        AutoDocs_Cron::reschedule();
+        AutoDocs_Cron::reschedule(null, true);
     }
 
     public static function deactivate()
@@ -52,6 +52,7 @@ final class AutoDocs_Plugin
         add_action(self::CRON_HOOK, array($this, 'run_scheduled_cron'));
         add_action('update_option_' . AutoDocs_Settings::OPTION_NAME, array($this, 'reschedule_cron_after_settings_save'), 10, 2);
         add_action('init', array($this, 'maybe_ensure_cron_scheduled'));
+        add_action('load-settings_page_autodocs-publisher', array($this, 'maybe_run_due_cron_on_settings_screen'));
     }
 
     public function maybe_ensure_cron_scheduled()
@@ -60,8 +61,16 @@ final class AutoDocs_Plugin
             return;
         }
         if (! wp_next_scheduled(self::CRON_HOOK)) {
-            AutoDocs_Cron::reschedule($this->settings);
+            AutoDocs_Cron::reschedule($this->settings, true);
         }
+    }
+
+    /**
+     * Run overdue automatic sync when viewing the plugin settings screen (helps local / low-traffic sites).
+     */
+    public function maybe_run_due_cron_on_settings_screen()
+    {
+        AutoDocs_Cron::run_due_sync($this->sync_service, $this->google_client, $this->settings);
     }
 
     public function run_scheduled_cron()
@@ -75,6 +84,6 @@ final class AutoDocs_Plugin
      */
     public function reschedule_cron_after_settings_save($old_value, $value)
     {
-        AutoDocs_Cron::reschedule($this->settings);
+        AutoDocs_Cron::reschedule($this->settings, true);
     }
 }

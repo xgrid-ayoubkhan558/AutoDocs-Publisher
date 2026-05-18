@@ -124,6 +124,7 @@ final class AutoDocs_Admin_Localization
                 'cronAgoSeconds' => __('%d seconds ago', 'autodocs-publisher'),
                 'cronAgoMinutes' => __('%d minutes ago', 'autodocs-publisher'),
                 'cronThenEvery' => __('Then %s.', 'autodocs-publisher'),
+                'cronWpCronDisabled' => __('WP-Cron is disabled in wp-config.php. Use a server cron calling wp-cron.php, or use Sync now.', 'autodocs-publisher'),
                 'categoriesFromDoc' => __('Use categories from document meta', 'autodocs-publisher'),
                 'categoriesManual' => __('Choose WordPress categories below', 'autodocs-publisher'),
                 'tagsFromDoc' => __('Use tags from document meta', 'autodocs-publisher'),

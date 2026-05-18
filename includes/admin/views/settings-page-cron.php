@@ -89,5 +89,5 @@ if (! defined('ABSPATH')) {
         </div>
     </dl>
 
-    <p class="description autodocs-cron-settings__footnote" id="autodocs-cron-footnote"><?php esc_html_e('Save settings to apply changes.', 'autodocs-publisher'); ?></p>
+    <p class="description autodocs-cron-settings__footnote" id="autodocs-cron-footnote"><?php esc_html_e('Save settings to apply interval changes. This page checks for due runs while open.', 'autodocs-publisher'); ?></p>
 </section>

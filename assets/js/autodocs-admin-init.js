@@ -293,7 +293,10 @@
         var siteTz = section.getAttribute('data-timezone') || cron.siteTzIntl || 'UTC';
         var tzLabel = section.getAttribute('data-timezone-label') || cron.siteTzLabel || '';
         var previewTimer = null;
+        var statusTimer = null;
         var currentNextTs = parseInt(section.getAttribute('data-next-ts') || '0', 10);
+        var lastRunEl = A.qs('#autodocs-cron-last-run');
+        var settingsDirty = false;
 
         function browserTimezoneLabel() {
             try {
@@ -418,6 +421,55 @@
             applyNextRunState();
         }
 
+        function applyStatusData(data) {
+            if (!data) {
+                return;
+            }
+            if (data.next_run_ts) {
+                currentNextTs = parseInt(data.next_run_ts, 10) || 0;
+                section.setAttribute('data-next-ts', String(currentNextTs));
+                settingsDirty = false;
+            }
+            if (lastRunEl && data.last_run) {
+                lastRunEl.textContent = data.last_run;
+            }
+            if (footnote && data.wp_cron_disabled) {
+                footnote.textContent =
+                    i18n.cronWpCronDisabled ||
+                    'WP-Cron is disabled in wp-config.php. Use a server cron job calling wp-cron.php, or run Sync now manually.';
+            }
+        }
+
+        function fetchStatus() {
+            if (typeof AutoDocsPublisher === 'undefined' || !AutoDocsPublisher.ajaxUrl) {
+                return;
+            }
+            if (!enabled || !enabled.checked) {
+                return;
+            }
+            var body = new URLSearchParams();
+            body.set('action', 'autodocs_cron_status');
+            body.set('nonce', AutoDocsPublisher.nonce);
+
+            return fetch(AutoDocsPublisher.ajaxUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: body.toString()
+            })
+                .then(function (r) {
+                    return r.json();
+                })
+                .then(function (json) {
+                    if (!json || !json.success || !json.data) {
+                        return;
+                    }
+                    applyStatusData(json.data);
+                    applyNextRunState();
+                })
+                .catch(function () {});
+        }
+
         function fetchPreview() {
             if (typeof AutoDocsPublisher === 'undefined' || !AutoDocsPublisher.ajaxUrl) {
                 return;
@@ -445,11 +497,16 @@
                     if (!json || !json.success || !json.data) {
                         return;
                     }
+                    settingsDirty = true;
                     if (json.data.next_run_ts) {
                         currentNextTs = parseInt(json.data.next_run_ts, 10) || 0;
                     }
                     if (siteNowEl && json.data.site_now) {
                         siteNowEl.textContent = json.data.site_now;
+                    }
+                    if (footnote) {
+                        footnote.textContent =
+                            i18n.cronNextRunEstimate || 'Save settings to apply interval changes.';
                     }
                     applyNextRunState();
                 })
@@ -465,17 +522,39 @@
                 applyNextRunState();
                 return;
             }
-            clearTimeout(previewTimer);
-            previewTimer = setTimeout(fetchPreview, 200);
+            if (settingsDirty) {
+                clearTimeout(previewTimer);
+                previewTimer = setTimeout(fetchPreview, 200);
+            }
+        }
+
+        function onUserChange() {
+            settingsDirty = true;
+            update();
+        }
+
+        function tick() {
+            if (computerNowEl) {
+                computerNowEl.textContent = formatComputerNow();
+            }
+            applyNextRunState();
+            if (enabled && enabled.checked && currentNextTs > 0) {
+                var diff = currentNextTs - Math.floor(Date.now() / 1000);
+                if (diff <= 0 && !settingsDirty) {
+                    fetchStatus();
+                }
+            }
         }
 
         tick();
         setInterval(tick, 1000);
+        fetchStatus();
+        statusTimer = setInterval(fetchStatus, 30000);
 
         [enabled, interval, timeInput].forEach(function (el) {
             if (el) {
-                el.addEventListener('change', update);
-                el.addEventListener('input', update);
+                el.addEventListener('change', onUserChange);
+                el.addEventListener('input', onUserChange);
             }
         });
         update();

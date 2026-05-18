@@ -249,10 +249,25 @@ final class AutoDocs_Cron
     }
 
     /**
+     * @param string $wp_schedule WP cron schedule slug.
+     * @return int Seconds between runs.
+     */
+    public static function schedule_interval_seconds($wp_schedule)
+    {
+        $schedules = wp_get_schedules();
+        if (isset($schedules[$wp_schedule]['interval'])) {
+            return max(60, (int) $schedules[$wp_schedule]['interval']);
+        }
+
+        return HOUR_IN_SECONDS;
+    }
+
+    /**
      * @param AutoDocs_Settings $settings
+     * @param bool              $prefer_soon If true, first run ~1 minute from now (after saving settings).
      * @return int Unix timestamp for wp_schedule_event.
      */
-    public static function compute_first_run_timestamp(AutoDocs_Settings $settings)
+    public static function compute_first_run_timestamp(AutoDocs_Settings $settings, $prefer_soon = false)
     {
         $interval = (string) $settings->get('cron_interval', 'hourly');
         $time = self::parse_cron_time((string) $settings->get('cron_time', '03:00'));
@@ -262,7 +277,13 @@ final class AutoDocs_Cron
             return self::next_timestamp_for_clock_time($time['hour'], $time['minute'], $now);
         }
 
-        return $now + MINUTE_IN_SECONDS;
+        if ($prefer_soon) {
+            return $now + MINUTE_IN_SECONDS;
+        }
+
+        $schedule = self::wp_schedule_for_setting($interval);
+
+        return $now + self::schedule_interval_seconds($schedule);
     }
 
     /**
@@ -305,8 +326,9 @@ final class AutoDocs_Cron
 
     /**
      * @param AutoDocs_Settings|null $settings
+     * @param bool                   $prefer_soon Schedule first run ~1 minute from now (settings save / first enable).
      */
-    public static function reschedule($settings = null)
+    public static function reschedule($settings = null, $prefer_soon = false)
     {
         if (! $settings instanceof AutoDocs_Settings) {
             $settings = new AutoDocs_Settings();
@@ -319,8 +341,61 @@ final class AutoDocs_Cron
         }
 
         $schedule = self::wp_schedule_for_setting((string) $settings->get('cron_interval', 'hourly'));
-        $first = self::compute_first_run_timestamp($settings);
+        $first = self::compute_first_run_timestamp($settings, $prefer_soon);
         wp_schedule_event($first, $schedule, AutoDocs_Plugin::CRON_HOOK);
+    }
+
+    /**
+     * Run sync when the scheduled time has passed, then queue the next full interval.
+     *
+     * @return bool True if a due run was executed.
+     */
+    public static function run_due_sync($sync_service, $google_client, $settings)
+    {
+        if ($settings->get('cron_enabled', '') !== '1') {
+            return false;
+        }
+
+        $hook = AutoDocs_Plugin::CRON_HOOK;
+        $timestamp = wp_next_scheduled($hook);
+        if (! $timestamp || $timestamp > time()) {
+            return false;
+        }
+
+        wp_clear_scheduled_hook($hook);
+        self::run_scheduled_sync($sync_service, $google_client, $settings);
+        self::reschedule($settings, false);
+
+        return true;
+    }
+
+    /**
+     * @return array{next_run_ts: int, last_run: string, last_run_ts: int, ran_now: bool, wp_cron_disabled: bool}
+     */
+    public static function status_payload($sync_service, $google_client, $settings)
+    {
+        if (! defined('DISABLE_WP_CRON') || ! DISABLE_WP_CRON) {
+            spawn_cron();
+        }
+
+        $ran_now = self::run_due_sync($sync_service, $google_client, $settings);
+
+        $last_raw = (string) get_option(AutoDocs_Sync_Meta::OPTION_LAST_CRON_RUN, '');
+        $last_ts = 0;
+        if ($last_raw !== '') {
+            $dt = date_create_from_format('Y-m-d H:i:s', $last_raw, wp_timezone());
+            if ($dt) {
+                $last_ts = $dt->getTimestamp();
+            }
+        }
+
+        return array(
+            'next_run_ts' => self::next_run_timestamp(),
+            'last_run' => self::last_run_formatted(),
+            'last_run_ts' => $last_ts,
+            'ran_now' => $ran_now,
+            'wp_cron_disabled' => defined('DISABLE_WP_CRON') && DISABLE_WP_CRON,
+        );
     }
 
     /**

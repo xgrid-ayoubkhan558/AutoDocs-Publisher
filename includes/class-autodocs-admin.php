@@ -44,6 +44,7 @@ class AutoDocs_Admin
         add_action('wp_ajax_autodocs_import_new_folder', array($this, 'ajax_import_new_folder'));
         add_action('wp_ajax_autodocs_bulk_import_folders', array($this, 'ajax_bulk_import_folders'));
         add_action('wp_ajax_autodocs_google_oauth_callback', array($this, 'ajax_google_oauth_callback'));
+        add_action('wp_ajax_autodocs_cron_status', array($this, 'ajax_cron_status'));
         add_action('wp_ajax_autodocs_cron_preview', array($this, 'ajax_cron_preview'));
         add_action('wp_ajax_nopriv_autodocs_google_oauth_callback', array($this, 'ajax_google_oauth_callback'));
 
