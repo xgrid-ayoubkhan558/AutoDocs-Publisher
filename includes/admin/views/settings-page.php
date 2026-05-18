@@ -256,11 +256,17 @@ if (!defined('ABSPATH')) {
                                 <?php endforeach; ?>
                             </select>
                         </p>
-                        <p class="autodocs-cron-settings__site-clock description">
-                            <strong><?php esc_html_e('WordPress site time now:', 'autodocs-publisher'); ?></strong>
-                            <span id="autodocs-cron-site-now"><?php echo esc_html($cron_site_time_now); ?></span>
-                            <a href="<?php echo esc_url($cron_general_settings_url); ?>"><?php esc_html_e('Change timezone', 'autodocs-publisher'); ?></a>
-                        </p>
+                        <ul class="autodocs-cron-settings__clocks description">
+                            <li>
+                                <strong><?php esc_html_e('Your computer time now:', 'autodocs-publisher'); ?></strong>
+                                <span id="autodocs-cron-computer-now" aria-live="polite">&mdash;</span>
+                            </li>
+                            <li>
+                                <strong><?php esc_html_e('WordPress site time now:', 'autodocs-publisher'); ?></strong>
+                                <span id="autodocs-cron-site-now"><?php echo esc_html($cron_site_time_now); ?></span>
+                                <a href="<?php echo esc_url($cron_general_settings_url); ?>"><?php esc_html_e('Change timezone', 'autodocs-publisher'); ?></a>
+                            </li>
+                        </ul>
                         <p class="notice notice-warning autodocs-cron-settings__tz-warn" id="autodocs-cron-tz-warn" hidden></p>
                         <p class="autodocs-cron-settings__row autodocs-cron-settings__row--time" id="autodocs-cron-time-row"<?php echo $cron_show_time ? '' : ' hidden'; ?>>
                             <label for="autodocs-cron-time"><?php esc_html_e('Time of day (site time)', 'autodocs-publisher'); ?></label>
@@ -276,10 +282,23 @@ if (!defined('ABSPATH')) {
                         <p class="description autodocs-cron-settings__schedule" id="autodocs-cron-schedule-summary"><?php echo esc_html($cron_schedule_description); ?></p>
                         <p class="description autodocs-cron-settings__save-hint"><?php esc_html_e('Save settings to apply interval or time changes to the WordPress schedule.', 'autodocs-publisher'); ?></p>
                         <ul class="autodocs-cron-settings__meta description">
-                            <li>
-                                <strong><?php esc_html_e('Next run (site time):', 'autodocs-publisher'); ?></strong>
-                                <span id="autodocs-cron-next-run"><?php echo $cron_enabled && $cron_next_run !== '' ? esc_html($cron_next_run) : esc_html__('Not scheduled (save settings after enabling)', 'autodocs-publisher'); ?></span>
-                                <span class="description" id="autodocs-cron-next-run-hint"></span>
+                            <li class="autodocs-cron-settings__next" id="autodocs-cron-next-block">
+                                <p class="autodocs-cron-settings__next-line">
+                                    <strong><?php esc_html_e('Next run (site time):', 'autodocs-publisher'); ?></strong>
+                                    <span id="autodocs-cron-next-run"><?php echo $cron_enabled && $cron_next_run !== '' ? esc_html($cron_next_run) : esc_html__('Not scheduled (save settings after enabling)', 'autodocs-publisher'); ?></span>
+                                    <?php if ($cron_next_run_relative !== '') : ?>
+                                        <span class="autodocs-cron-settings__relative" id="autodocs-cron-next-run-relative"><?php echo esc_html($cron_next_run_relative); ?></span>
+                                    <?php else : ?>
+                                        <span class="autodocs-cron-settings__relative" id="autodocs-cron-next-run-relative" hidden></span>
+                                    <?php endif; ?>
+                                </p>
+                                <p class="autodocs-cron-settings__next-line" id="autodocs-cron-next-local-row"<?php echo ($cron_enabled && $cron_next_run_ts > 0) ? '' : ' hidden'; ?>>
+                                    <strong><?php esc_html_e('On your computer:', 'autodocs-publisher'); ?></strong>
+                                    <span id="autodocs-cron-next-run-local"></span>
+                                    <span class="autodocs-cron-settings__relative" id="autodocs-cron-next-run-local-relative"></span>
+                                </p>
+                                <p class="description autodocs-cron-settings__next-hint" id="autodocs-cron-next-run-hint"></p>
+                                <p class="description autodocs-cron-settings__repeat" id="autodocs-cron-repeat-label"><?php echo esc_html($cron_repeat_label); ?></p>
                             </li>
                             <li>
                                 <strong><?php esc_html_e('Last automatic run:', 'autodocs-publisher'); ?></strong>

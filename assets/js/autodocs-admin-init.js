@@ -282,7 +282,13 @@
         var summary = A.qs('#autodocs-cron-schedule-summary');
         var timeRow = A.qs('#autodocs-cron-time-row');
         var nextRunEl = A.qs('#autodocs-cron-next-run');
+        var nextRunRelative = A.qs('#autodocs-cron-next-run-relative');
+        var nextRunLocal = A.qs('#autodocs-cron-next-run-local');
+        var nextRunLocalRelative = A.qs('#autodocs-cron-next-run-local-relative');
+        var nextRunLocalRow = A.qs('#autodocs-cron-next-local-row');
         var nextRunHint = A.qs('#autodocs-cron-next-run-hint');
+        var repeatLabelEl = A.qs('#autodocs-cron-repeat-label');
+        var computerNowEl = A.qs('#autodocs-cron-computer-now');
         var siteNowEl = A.qs('#autodocs-cron-site-now');
         var tzWarn = A.qs('#autodocs-cron-tz-warn');
         var pub = typeof AutoDocsPublisher !== 'undefined' ? AutoDocsPublisher : {};
@@ -291,7 +297,9 @@
         var intervalLabels = pub.cronIntervals || {};
         var tzLabel = section.getAttribute('data-timezone-label') || cron.siteTzLabel || '';
         var previewTimer = null;
-        var savedNextTs = parseInt(section.getAttribute('data-next-ts') || '0', 10);
+        var tickTimer = null;
+        var currentNextTs = parseInt(section.getAttribute('data-next-ts') || '0', 10);
+        var isEstimate = false;
 
         function formatTpl(tpl) {
             var args = Array.prototype.slice.call(arguments, 1);
@@ -301,12 +309,124 @@
             });
         }
 
+        function formatTplD(tpl) {
+            var args = Array.prototype.slice.call(arguments, 1);
+            var i = 0;
+            return tpl.replace(/%(\d+)\$d/g, function () {
+                return args[i++] !== undefined ? String(args[i - 1]) : '';
+            });
+        }
+
         function browserTimezoneLabel() {
             try {
                 return Intl.DateTimeFormat().resolvedOptions().timeZone || '';
             } catch (err) {
                 return '';
             }
+        }
+
+        function formatComputerNow() {
+            var tz = browserTimezoneLabel();
+            var label = tz;
+            if (!label) {
+                var off = -new Date().getTimezoneOffset() / 60;
+                label = 'UTC' + (off >= 0 ? '+' : '') + off;
+            }
+            try {
+                var formatted = new Intl.DateTimeFormat(undefined, {
+                    dateStyle: 'medium',
+                    timeStyle: 'short'
+                }).format(new Date());
+                return formatted + ' (' + label + ')';
+            } catch (err) {
+                return new Date().toLocaleString() + ' (' + label + ')';
+            }
+        }
+
+        function formatLocalTimestamp(ts) {
+            var tz = browserTimezoneLabel();
+            var label = tz || '';
+            try {
+                return (
+                    new Intl.DateTimeFormat(undefined, {
+                        dateStyle: 'medium',
+                        timeStyle: 'short'
+                    }).format(new Date(ts * 1000)) + (label ? ' (' + label + ')' : '')
+                );
+            } catch (err) {
+                return new Date(ts * 1000).toLocaleString() + (label ? ' (' + label + ')' : '');
+            }
+        }
+
+        function relativeUntil(ts) {
+            var diff = ts - Math.floor(Date.now() / 1000);
+            if (diff <= 0) {
+                var ago = Math.abs(diff);
+                if (ago < 60) {
+                    return formatTplD(i18n.cronAgoSeconds || '%d seconds ago', ago);
+                }
+                return formatTplD(i18n.cronAgoMinutes || '%d minutes ago', Math.max(1, Math.round(ago / 60)));
+            }
+            if (diff < 60) {
+                return diff < 30
+                    ? i18n.cronInLessThanMinute || 'in less than a minute'
+                    : formatTplD(i18n.cronInSeconds || 'in %d seconds', diff);
+            }
+            if (diff < 3600) {
+                return formatTplD(i18n.cronInMinutes || 'in %d minutes', Math.max(1, Math.round(diff / 60)));
+            }
+            if (diff < 86400) {
+                var hours = Math.floor(diff / 3600);
+                var mins = Math.round((diff % 3600) / 60);
+                return formatTplD(i18n.cronInHoursMinutes || 'in %1$d hours %2$d minutes', hours, mins);
+            }
+            var days = Math.floor(diff / 86400);
+            var remHours = Math.round((diff % 86400) / 3600);
+            return formatTplD(i18n.cronInDaysHours || 'in %1$d days %2$d hours', days, remHours);
+        }
+
+        function repeatLabelForInterval(iv) {
+            var label = intervalLabels[iv] || '';
+            if (!label) {
+                return '';
+            }
+            return formatTpl(i18n.cronThenEvery || 'Then %s.', label.toLowerCase());
+        }
+
+        function applyNextRunState() {
+            var rel = currentNextTs > 0 ? relativeUntil(currentNextTs) : '';
+            if (nextRunRelative) {
+                if (rel) {
+                    nextRunRelative.hidden = false;
+                    nextRunRelative.textContent = rel;
+                } else {
+                    nextRunRelative.hidden = true;
+                    nextRunRelative.textContent = '';
+                }
+            }
+            if (nextRunLocalRelative) {
+                nextRunLocalRelative.textContent = rel;
+            }
+            if (nextRunLocal && currentNextTs > 0) {
+                nextRunLocal.textContent = formatLocalTimestamp(currentNextTs);
+            }
+            if (nextRunLocalRow) {
+                nextRunLocalRow.hidden = !(currentNextTs > 0);
+            }
+            if (nextRunHint) {
+                nextRunHint.textContent = isEstimate
+                    ? i18n.cronNextRunEstimate || 'Estimated after you save settings.'
+                    : currentNextTs > 0
+                      ? i18n.cronNextRunScheduled || 'Currently scheduled.'
+                      : '';
+            }
+        }
+
+        function tickClocks() {
+            if (computerNowEl) {
+                computerNowEl.textContent = formatComputerNow();
+            }
+            applyNextRunState();
         }
 
         function checkTimezoneMismatch() {
@@ -322,7 +442,7 @@
                 return;
             }
             var browserTz = browserTimezoneLabel();
-            var browserLabel = browserTz || formatTpl('UTC%+d', browserOffsetMin / 60);
+            var browserLabel = browserTz || 'UTC' + (browserOffsetMin >= 0 ? '+' : '') + browserOffsetMin / 60;
             tzWarn.hidden = false;
             tzWarn.textContent = formatTpl(
                 i18n.cronTzMismatch ||
@@ -330,6 +450,28 @@
                 browserLabel,
                 tzLabel
             );
+        }
+
+        function clearNextRunUi() {
+            currentNextTs = 0;
+            isEstimate = false;
+            if (nextRunEl) {
+                nextRunEl.textContent =
+                    i18n.cronDisabled || 'Automatic sync is disabled.';
+            }
+            if (nextRunRelative) {
+                nextRunRelative.hidden = true;
+                nextRunRelative.textContent = '';
+            }
+            if (nextRunLocalRow) {
+                nextRunLocalRow.hidden = true;
+            }
+            if (nextRunHint) {
+                nextRunHint.textContent = '';
+            }
+            if (repeatLabelEl) {
+                repeatLabelEl.textContent = '';
+            }
         }
 
         function updateSummary() {
@@ -343,20 +485,14 @@
             }
             if (!enabled || !enabled.checked) {
                 summary.textContent = i18n.cronDisabled || 'Automatic sync is disabled.';
-                if (nextRunEl) {
-                    nextRunEl.textContent =
-                        i18n.cronDisabled || 'Automatic sync is disabled.';
-                }
-                if (nextRunHint) {
-                    nextRunHint.textContent = '';
-                }
+                clearNextRunUi();
                 return;
             }
             var text = '';
             if (iv === 'daily' || iv === 'twicedaily') {
                 text =
                     i18n.cronDailyHint ||
-                    'Time of day uses WordPress site time (see clock above). Save settings to apply.';
+                    'Time of day uses WordPress site time (see clocks above). Save settings to apply.';
             } else {
                 var label = intervalLabels[iv] || iv;
                 text = formatTpl(
@@ -367,6 +503,9 @@
             }
             var note = i18n.cronWpNote || '';
             summary.textContent = note ? text + ' ' + note : text;
+            if (repeatLabelEl) {
+                repeatLabelEl.textContent = repeatLabelForInterval(iv);
+            }
         }
 
         function fetchPreview() {
@@ -374,8 +513,7 @@
                 return;
             }
             var iv = interval ? interval.value : 'hourly';
-            var isOn = enabled && enabled.checked;
-            if (!isOn) {
+            if (!enabled || !enabled.checked) {
                 return;
             }
             var body = new URLSearchParams();
@@ -398,15 +536,20 @@
                     if (!json || !json.success || !json.data) {
                         return;
                     }
+                    isEstimate = true;
                     if (json.data.next_run) {
                         nextRunEl.textContent = json.data.next_run;
+                    }
+                    if (json.data.next_run_ts) {
+                        currentNextTs = parseInt(json.data.next_run_ts, 10) || 0;
                     }
                     if (siteNowEl && json.data.site_now) {
                         siteNowEl.textContent = json.data.site_now;
                     }
-                    if (nextRunHint) {
-                        nextRunHint.textContent = i18n.cronNextRunEstimate || 'Estimated after save (site time):';
+                    if (repeatLabelEl && json.data.repeat_label) {
+                        repeatLabelEl.textContent = json.data.repeat_label;
                     }
+                    applyNextRunState();
                 })
                 .catch(function () {});
         }
@@ -422,20 +565,18 @@
             if (!enabled || !enabled.checked) {
                 return;
             }
-            var iv = interval ? interval.value : 'hourly';
-            if (iv === 'daily' || iv === 'twicedaily') {
-                schedulePreview();
-            } else {
-                schedulePreview();
-                if (nextRunHint) {
-                    nextRunHint.textContent = i18n.cronNextRunEstimate || 'Estimated after save (site time):';
-                }
-            }
+            schedulePreview();
         }
 
-        if (nextRunEl && savedNextTs > 0 && nextRunHint) {
-            nextRunHint.textContent = i18n.cronNextRunScheduled || 'Scheduled (site time):';
+        if (currentNextTs > 0) {
+            isEstimate = false;
+            applyNextRunState();
+        } else if (nextRunHint && enabled && enabled.checked) {
+            nextRunHint.textContent = i18n.cronNextRunEstimate || 'Estimated after you save settings.';
         }
+
+        tickClocks();
+        tickTimer = setInterval(tickClocks, 1000);
 
         [enabled, interval, timeInput].forEach(function (el) {
             if (el) {

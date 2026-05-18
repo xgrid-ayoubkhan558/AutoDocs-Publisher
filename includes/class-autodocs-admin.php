@@ -226,7 +226,10 @@ class AutoDocs_Admin
         $cron_enabled = isset($settings['cron_enabled']) && $settings['cron_enabled'] === '1';
         $cron_interval = isset($settings['cron_interval']) ? (string) $settings['cron_interval'] : 'hourly';
         $cron_time = isset($settings['cron_time']) ? (string) $settings['cron_time'] : '03:00';
-        $cron_next_run = $cron_enabled ? AutoDocs_Cron::next_run_formatted() : '';
+        $cron_next_run_ts = $cron_enabled ? AutoDocs_Cron::next_run_timestamp() : 0;
+        $cron_next_run = $cron_next_run_ts > 0 ? AutoDocs_Cron::format_timestamp($cron_next_run_ts) : '';
+        $cron_next_run_relative = $cron_next_run_ts > 0 ? AutoDocs_Cron::relative_until_formatted($cron_next_run_ts) : '';
+        $cron_repeat_label = $cron_enabled ? AutoDocs_Cron::interval_repeat_label($cron_interval) : '';
         $cron_last_run = AutoDocs_Cron::last_run_formatted();
         $cron_schedule_description = AutoDocs_Cron::schedule_description($this->settings);
         $cron_timezone_label = AutoDocs_Cron::timezone_label();

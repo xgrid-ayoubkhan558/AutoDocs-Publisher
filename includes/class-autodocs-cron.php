@@ -165,7 +165,53 @@ final class AutoDocs_Cron
      */
     public static function site_now_formatted()
     {
-        return wp_date(get_option('time_format'), time()) . ' (' . self::timezone_label() . ')';
+        return wp_date(get_option('date_format') . ' ' . get_option('time_format'), time()) . ' (' . self::timezone_label() . ')';
+    }
+
+    /**
+     * @param int $timestamp Unix timestamp (UTC).
+     * @return string e.g. "in 5 minutes" or "2 hours ago".
+     */
+    public static function relative_until_formatted($timestamp)
+    {
+        $timestamp = (int) $timestamp;
+        if ($timestamp <= 0) {
+            return '';
+        }
+
+        $now = time();
+        if ($timestamp <= $now) {
+            return sprintf(
+                /* translators: %s: human time diff e.g. "5 minutes" */
+                __('%s ago', 'autodocs-publisher'),
+                human_time_diff($timestamp, $now, true)
+            );
+        }
+
+        return sprintf(
+            /* translators: %s: human time diff e.g. "5 minutes" */
+            __('in %s', 'autodocs-publisher'),
+            human_time_diff($now, $timestamp, true)
+        );
+    }
+
+    /**
+     * @param string $interval Setting key (15min, hourly, …).
+     * @return string
+     */
+    public static function interval_repeat_label($interval)
+    {
+        $labels = self::interval_labels();
+        $key = is_string($interval) ? $interval : '';
+        if ($key === '' || ! isset($labels[$key])) {
+            return '';
+        }
+
+        return sprintf(
+            /* translators: %s: interval label e.g. "every 15 minutes" */
+            __('Then %s.', 'autodocs-publisher'),
+            strtolower($labels[$key])
+        );
     }
 
     /**

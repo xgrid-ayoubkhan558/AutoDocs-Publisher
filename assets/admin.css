@@ -624,12 +624,39 @@
     margin: 0 0 12px;
 }
 
-.autodocs-cron-settings__site-clock {
-    margin: 0 0 10px;
+.autodocs-cron-settings__clocks {
+    list-style: none;
+    margin: 0 0 12px;
+    padding: 0;
 }
 
-.autodocs-cron-settings__site-clock a {
+.autodocs-cron-settings__clocks li {
+    margin: 0 0 6px;
+}
+
+.autodocs-cron-settings__clocks a {
     margin-left: 8px;
+}
+
+.autodocs-cron-settings__next-line {
+    margin: 0 0 6px;
+}
+
+.autodocs-cron-settings__relative {
+    color: #2271b1;
+    display: inline-block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-left: 6px;
+}
+
+.autodocs-cron-settings__next-hint {
+    margin: 4px 0 6px;
+}
+
+.autodocs-cron-settings__repeat {
+    font-style: italic;
+    margin: 0;
 }
 
 .autodocs-cron-settings__tz-warn {
