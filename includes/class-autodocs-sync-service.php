@@ -206,4 +206,13 @@ class AutoDocs_Sync_Service
     {
         return $this->import->import_folders_bulk($folder_ids, $bucket_key, $input);
     }
+
+    /**
+     * @param int $max_per_run
+     * @return array{imported: int, failed: int, skipped: int}
+     */
+    public function import_new_bucket_folders_for_cron($max_per_run = 10)
+    {
+        return $this->import->import_new_bucket_folders_for_cron($max_per_run);
+    }
 }

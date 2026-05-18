@@ -295,7 +295,11 @@
         var previewTimer = null;
         var statusTimer = null;
         var currentNextTs = parseInt(section.getAttribute('data-next-ts') || '0', 10);
-        var lastRunEl = A.qs('#autodocs-cron-last-run');
+        var lastRunSite = A.qs('#autodocs-cron-last-run-site');
+        var lastRunLocal = A.qs('#autodocs-cron-last-run-local');
+        var lastRunBlock = A.qs('#autodocs-cron-last-run-block');
+        var lastRunNever = A.qs('#autodocs-cron-last-run-never');
+        var lastRunTs = parseInt(section.getAttribute('data-last-ts') || '0', 10);
         var settingsDirty = false;
 
         function browserTimezoneLabel() {
@@ -367,6 +371,34 @@
             );
         }
 
+        function applyLastRunState() {
+            if (lastRunTs > 0) {
+                if (lastRunBlock) {
+                    lastRunBlock.hidden = false;
+                }
+                if (lastRunNever) {
+                    lastRunNever.hidden = true;
+                }
+                if (lastRunSite) {
+                    lastRunSite.textContent = formatShort(lastRunTs, siteTz, tzLabel);
+                }
+                if (lastRunLocal) {
+                    lastRunLocal.textContent = formatShort(
+                        lastRunTs,
+                        browserTimezoneLabel() || undefined,
+                        browserTimezoneLabel()
+                    );
+                }
+            } else {
+                if (lastRunBlock) {
+                    lastRunBlock.hidden = true;
+                }
+                if (lastRunNever) {
+                    lastRunNever.hidden = false;
+                }
+            }
+        }
+
         function applyNextRunState() {
             if (!enabled || !enabled.checked) {
                 if (nextBlock) {
@@ -430,9 +462,11 @@
                 section.setAttribute('data-next-ts', String(currentNextTs));
                 settingsDirty = false;
             }
-            if (lastRunEl && data.last_run) {
-                lastRunEl.textContent = data.last_run;
+            if (data.last_run_ts) {
+                lastRunTs = parseInt(data.last_run_ts, 10) || 0;
+                section.setAttribute('data-last-ts', String(lastRunTs));
             }
+            applyLastRunState();
             if (footnote && data.wp_cron_disabled) {
                 footnote.textContent =
                     i18n.cronWpCronDisabled ||
@@ -546,6 +580,7 @@
             }
         }
 
+        applyLastRunState();
         tick();
         setInterval(tick, 1000);
         fetchStatus();

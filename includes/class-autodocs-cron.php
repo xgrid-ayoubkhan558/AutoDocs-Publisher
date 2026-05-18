@@ -9,6 +9,8 @@ if (! defined('ABSPATH')) {
  */
 final class AutoDocs_Cron
 {
+    public const LOCK_TRANSIENT = 'autodocs_cron_running';
+
     public const SCHEDULE_15MIN = 'autodocs_every_15_minutes';
     public const SCHEDULE_30MIN = 'autodocs_every_30_minutes';
     public const SCHEDULE_6HOURS = 'autodocs_every_6_hours';
@@ -346,6 +348,34 @@ final class AutoDocs_Cron
     }
 
     /**
+     * Run overdue sync on any site request (not only the settings screen).
+     *
+     * @return bool True if a due run was executed.
+     */
+    public static function maybe_run_due_on_request($sync_service, $google_client, $settings)
+    {
+        if ($settings->get('cron_enabled', '') !== '1') {
+            return false;
+        }
+
+        if (defined('DOING_CRON') && DOING_CRON) {
+            return false;
+        }
+
+        if (get_transient(self::LOCK_TRANSIENT)) {
+            return false;
+        }
+
+        $hook = AutoDocs_Plugin::CRON_HOOK;
+        $timestamp = wp_next_scheduled($hook);
+        if (! $timestamp || $timestamp > time()) {
+            return false;
+        }
+
+        return self::run_due_sync($sync_service, $google_client, $settings);
+    }
+
+    /**
      * Run sync when the scheduled time has passed, then queue the next full interval.
      *
      * @return bool True if a due run was executed.
@@ -353,6 +383,10 @@ final class AutoDocs_Cron
     public static function run_due_sync($sync_service, $google_client, $settings)
     {
         if ($settings->get('cron_enabled', '') !== '1') {
+            return false;
+        }
+
+        if (get_transient(self::LOCK_TRANSIENT)) {
             return false;
         }
 
@@ -478,10 +512,20 @@ final class AutoDocs_Cron
             return;
         }
 
-        update_option(AutoDocs_Sync_Meta::OPTION_LAST_CRON_RUN, current_time('mysql'), false);
+        if (get_transient(self::LOCK_TRANSIENT)) {
+            return;
+        }
 
-        $sync_service->refresh_known_statuses();
-        $sync_service->sync_all(false, AutoDocs_Sync_Meta::SYNC_SOURCE_CRON);
+        set_transient(self::LOCK_TRANSIENT, (string) time(), 10 * MINUTE_IN_SECONDS);
+
+        try {
+            $sync_service->refresh_known_statuses();
+            $sync_service->import_new_bucket_folders_for_cron(10);
+            $sync_service->sync_all(false, AutoDocs_Sync_Meta::SYNC_SOURCE_CRON);
+            update_option(AutoDocs_Sync_Meta::OPTION_LAST_CRON_RUN, current_time('mysql'), false);
+        } finally {
+            delete_transient(self::LOCK_TRANSIENT);
+        }
     }
 
     /**

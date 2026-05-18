@@ -11,7 +11,7 @@
  * @var string $cron_general_settings_url
  * @var int    $cron_next_run_ts
  * @var string $cron_next_run_relative
- * @var string $cron_last_run
+ * @var int    $cron_last_run_ts
  */
 
 if (! defined('ABSPATH')) {
@@ -25,9 +25,10 @@ if (! defined('ABSPATH')) {
     data-timezone-label="<?php echo esc_attr($cron_timezone_label); ?>"
     data-gmt-offset="<?php echo esc_attr((string) AutoDocs_Cron::site_gmt_offset_hours()); ?>"
     data-next-ts="<?php echo esc_attr((string) $cron_next_run_ts); ?>"
+    data-last-ts="<?php echo esc_attr((string) $cron_last_run_ts); ?>"
 >
     <h3 class="autodocs-cron-settings__title"><?php esc_html_e('Automatic sync', 'autodocs-publisher'); ?></h3>
-    <p class="description"><?php esc_html_e('Refresh modified status and update Synced bucket posts from Drive.', 'autodocs-publisher'); ?></p>
+    <p class="description"><?php esc_html_e('Imports new Drive articles, updates synced posts, and runs on a schedule whenever your site gets traffic.', 'autodocs-publisher'); ?></p>
 
     <p class="autodocs-cron-settings__controls">
         <label class="autodocs-cron-settings__enable">
@@ -85,9 +86,19 @@ if (! defined('ABSPATH')) {
         </div>
         <div class="autodocs-cron-settings__clock">
             <dt><?php esc_html_e('Last run', 'autodocs-publisher'); ?></dt>
-            <dd id="autodocs-cron-last-run"><?php echo $cron_last_run !== '' ? esc_html($cron_last_run) : esc_html__('Never', 'autodocs-publisher'); ?></dd>
+            <dd class="autodocs-cron-settings__next-grid" id="autodocs-cron-last-run-block"<?php echo $cron_last_run_ts > 0 ? '' : ' hidden'; ?>>
+                <span class="autodocs-cron-settings__next-item">
+                    <span class="autodocs-cron-settings__next-label"><?php esc_html_e('WordPress', 'autodocs-publisher'); ?></span>
+                    <span id="autodocs-cron-last-run-site"><?php echo $cron_last_run_ts > 0 ? esc_html(AutoDocs_Cron::format_timestamp($cron_last_run_ts)) : '&mdash;'; ?></span>
+                </span>
+                <span class="autodocs-cron-settings__next-item">
+                    <span class="autodocs-cron-settings__next-label"><?php esc_html_e('Computer', 'autodocs-publisher'); ?></span>
+                    <span id="autodocs-cron-last-run-local">&mdash;</span>
+                </span>
+            </dd>
+            <dd id="autodocs-cron-last-run-never"<?php echo $cron_last_run_ts > 0 ? ' hidden' : ''; ?>><?php esc_html_e('Never', 'autodocs-publisher'); ?></dd>
         </div>
     </dl>
 
-    <p class="description autodocs-cron-settings__footnote" id="autodocs-cron-footnote"><?php esc_html_e('Save settings to apply interval changes. This page checks for due runs while open.', 'autodocs-publisher'); ?></p>
+    <p class="description autodocs-cron-settings__footnote" id="autodocs-cron-footnote"><?php esc_html_e('Save settings to apply interval changes. Runs when anyone visits your site after the scheduled time.', 'autodocs-publisher'); ?></p>
 </section>

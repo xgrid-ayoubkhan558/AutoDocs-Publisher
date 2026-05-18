@@ -229,7 +229,14 @@ class AutoDocs_Admin
         $cron_time = isset($settings['cron_time']) ? (string) $settings['cron_time'] : '03:00';
         $cron_next_run_ts = $cron_enabled ? AutoDocs_Cron::next_run_timestamp() : 0;
         $cron_next_run_relative = $cron_next_run_ts > 0 ? AutoDocs_Cron::relative_until_formatted($cron_next_run_ts) : '';
-        $cron_last_run = AutoDocs_Cron::last_run_formatted();
+        $cron_last_run_ts = 0;
+        $last_raw = (string) get_option(AutoDocs_Sync_Meta::OPTION_LAST_CRON_RUN, '');
+        if ($last_raw !== '') {
+            $last_dt = date_create_from_format('Y-m-d H:i:s', $last_raw, wp_timezone());
+            if ($last_dt) {
+                $cron_last_run_ts = $last_dt->getTimestamp();
+            }
+        }
         $cron_timezone_label = AutoDocs_Cron::timezone_label();
         $cron_site_time_now = AutoDocs_Cron::site_now_formatted();
         $cron_show_time = in_array($cron_interval, array('daily', 'twicedaily'), true);

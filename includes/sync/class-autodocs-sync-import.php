@@ -776,4 +776,70 @@ final class AutoDocs_Sync_Import
             'results' => $results,
         );
     }
+
+    /**
+     * Import article folders in the New bucket that are not linked to a post yet (automatic sync).
+     *
+     * @param int $max_per_run Maximum folders to import per cron run.
+     * @return array{imported: int, failed: int, skipped: int}
+     */
+    public function import_new_bucket_folders_for_cron($max_per_run = 10)
+    {
+        $max_per_run = max(1, min(25, (int) $max_per_run));
+        $new_bucket_id = (string) $this->settings->get('folder_new', '');
+        if ($new_bucket_id === '') {
+            return array('imported' => 0, 'failed' => 0, 'skipped' => 0);
+        }
+
+        $folders = $this->google_client->list_folders($new_bucket_id);
+        if (is_wp_error($folders)) {
+            return array('imported' => 0, 'failed' => 0, 'skipped' => 0);
+        }
+
+        $folder_ids = array();
+        foreach ($folders as $folder) {
+            $folder_id = isset($folder['id']) ? (string) $folder['id'] : '';
+            if ($folder_id === '' || $this->repository->post_id_for_folder($folder_id)) {
+                continue;
+            }
+            $folder_ids[] = $folder_id;
+            if (count($folder_ids) >= $max_per_run) {
+                break;
+            }
+        }
+
+        if ($folder_ids === array()) {
+            return array('imported' => 0, 'failed' => 0, 'skipped' => 0);
+        }
+
+        $author = (int) get_option('autodocs_cron_import_author', 0);
+        if ($author <= 0 || ! get_userdata($author)) {
+            $admins = get_users(
+                array(
+                    'role' => 'administrator',
+                    'number' => 1,
+                    'fields' => 'ID',
+                )
+            );
+            $author = ! empty($admins) ? (int) $admins[0] : 1;
+        }
+
+        $input = array(
+            'bucket_key' => 'new',
+            'categories_mode' => 'doc',
+            'tags_mode' => 'doc',
+            'move_to_synced' => true,
+            'use_doc_excerpt' => true,
+            'post_author' => $author,
+            'acf_body_field' => AutoDocs_Acf_Helpers::SELECT_SITE_DEFAULT_VALUE,
+        );
+
+        $bulk = $this->import_folders_bulk($folder_ids, 'new', $input);
+
+        return array(
+            'imported' => (int) ($bulk['imported'] ?? 0),
+            'failed' => (int) ($bulk['failed'] ?? 0),
+            'skipped' => max(0, count($folders) - count($folder_ids)),
+        );
+    }
 }

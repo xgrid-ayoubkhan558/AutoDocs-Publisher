@@ -52,7 +52,20 @@ final class AutoDocs_Plugin
         add_action(self::CRON_HOOK, array($this, 'run_scheduled_cron'));
         add_action('update_option_' . AutoDocs_Settings::OPTION_NAME, array($this, 'reschedule_cron_after_settings_save'), 10, 2);
         add_action('init', array($this, 'maybe_ensure_cron_scheduled'));
+        add_action('init', array($this, 'maybe_run_due_cron_on_request'), 20);
         add_action('load-settings_page_autodocs-publisher', array($this, 'maybe_run_due_cron_on_settings_screen'));
+    }
+
+    /**
+     * Run automatic sync when it is due and someone visits the site (front or admin).
+     */
+    public function maybe_run_due_cron_on_request()
+    {
+        if (wp_doing_ajax() || wp_doing_cron()) {
+            return;
+        }
+
+        AutoDocs_Cron::maybe_run_due_on_request($this->sync_service, $this->google_client, $this->settings);
     }
 
     public function maybe_ensure_cron_scheduled()
