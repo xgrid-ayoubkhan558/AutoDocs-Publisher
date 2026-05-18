@@ -162,48 +162,117 @@ final class AutoDocs_Sync_Repository
     {
         $limit = max(1, min(25, (int) $limit));
 
-        $posts = get_posts(
+        $query = new WP_Query(
             array(
                 'post_type' => 'any',
                 'post_status' => array('publish', 'draft', 'pending', 'private', 'future'),
-                'meta_key' => AutoDocs_Sync_Meta::META_LAST_SYNCED,
-                'orderby' => 'meta_value',
-                'order' => 'DESC',
-                'posts_per_page' => $limit,
+                'posts_per_page' => $limit * 3,
                 'fields' => 'ids',
+                'no_found_rows' => true,
+                'ignore_sticky_posts' => true,
+                'meta_query' => array(
+                    array(
+                        'key' => AutoDocs_Sync_Meta::META_LAST_SYNCED,
+                        'compare' => 'EXISTS',
+                    ),
+                ),
+                'orderby' => 'meta_value',
+                'meta_key' => AutoDocs_Sync_Meta::META_LAST_SYNCED,
+                'meta_type' => 'DATETIME',
+                'order' => 'DESC',
             )
         );
 
-        $out = array();
-        foreach ($posts as $post_id) {
+        $seen = array();
+        $rows = array();
+
+        foreach ($query->posts as $post_id) {
             $post_id = (int) $post_id;
-            if ($post_id <= 0) {
+            if ($post_id <= 0 || isset($seen[ $post_id ])) {
                 continue;
             }
-            $last = (string) get_post_meta($post_id, AutoDocs_Sync_Meta::META_LAST_SYNCED, true);
-            $formatted = '';
-            if ($last !== '') {
-                $dt = date_create_from_format('Y-m-d H:i:s', $last, wp_timezone());
-                if ($dt) {
-                    $formatted = wp_date(
-                        get_option('date_format') . ' ' . get_option('time_format'),
-                        $dt->getTimestamp()
-                    );
-                }
+            $seen[ $post_id ] = true;
+
+            $row = $this->build_recent_sync_row($post_id);
+            if ($row !== null) {
+                $rows[] = $row;
             }
-            $edit = get_edit_post_link($post_id, 'raw');
-            $source = (string) get_post_meta($post_id, AutoDocs_Sync_Meta::META_LAST_SYNC_SOURCE, true);
-            $out[] = array(
-                'post_id' => $post_id,
-                'title' => get_the_title($post_id),
-                'edit_url' => $edit ? (string) $edit : '',
-                'last_synced_formatted' => $formatted,
-                'post_type' => get_post_type($post_id) ?: '',
-                'sync_source' => $source,
-                'sync_source_label' => AutoDocs_Sync_Meta::sync_source_label($source),
+        }
+
+        usort(
+            $rows,
+            static function ($a, $b) {
+                $cmp = ($b['last_synced_ts'] ?? 0) <=> ($a['last_synced_ts'] ?? 0);
+                if ($cmp !== 0) {
+                    return $cmp;
+                }
+
+                return ($b['post_id'] ?? 0) <=> ($a['post_id'] ?? 0);
+            }
+        );
+
+        return array_slice($rows, 0, $limit);
+    }
+
+    /**
+     * @param int $post_id
+     * @return array<string, mixed>|null
+     */
+    private function build_recent_sync_row($post_id)
+    {
+        $post_id = (int) $post_id;
+        if ($post_id <= 0) {
+            return null;
+        }
+
+        $last = (string) get_post_meta($post_id, AutoDocs_Sync_Meta::META_LAST_SYNCED, true);
+        if ($last === '') {
+            return null;
+        }
+
+        $last_ts = 0;
+        $formatted = '';
+        $dt = date_create_from_format('Y-m-d H:i:s', $last, wp_timezone());
+        if ($dt) {
+            $last_ts = $dt->getTimestamp();
+            $formatted = wp_date(
+                get_option('date_format') . ' ' . get_option('time_format'),
+                $last_ts
             );
         }
 
-        return $out;
+        $edit = get_edit_post_link($post_id, 'raw');
+        $source = (string) get_post_meta($post_id, AutoDocs_Sync_Meta::META_LAST_SYNC_SOURCE, true);
+        $title = html_entity_decode((string) get_the_title($post_id), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $folder_name = (string) get_post_meta($post_id, AutoDocs_Sync_Meta::META_FOLDER_NAME, true);
+        $slug = (string) get_post_field('post_name', $post_id);
+        $ptype = get_post_type($post_id) ?: '';
+        $ptype_label = '';
+        if ($ptype !== '') {
+            $pto = get_post_type_object($ptype);
+            $ptype_label = $pto && isset($pto->labels->singular_name) ? (string) $pto->labels->singular_name : $ptype;
+        }
+
+        $subtitle_parts = array();
+        if ($folder_name !== '') {
+            $subtitle_parts[] = $folder_name;
+        } elseif ($slug !== '') {
+            $subtitle_parts[] = $slug;
+        }
+        if ($ptype_label !== '') {
+            $subtitle_parts[] = $ptype_label;
+        }
+
+        return array(
+            'post_id' => $post_id,
+            'title' => $title,
+            'subtitle' => implode(' · ', $subtitle_parts),
+            'edit_url' => $edit ? (string) $edit : '',
+            'last_synced_formatted' => $formatted,
+            'last_synced_ts' => $last_ts,
+            'post_type' => $ptype,
+            'sync_source' => $source,
+            'sync_source_label' => AutoDocs_Sync_Meta::sync_source_label($source),
+        );
     }
 }

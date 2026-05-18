@@ -483,6 +483,9 @@ final class AutoDocs_Sync_Import
 
         update_post_meta($post_id, AutoDocs_Sync_Meta::META_FILE_ID, $doc_file['id']);
         update_post_meta($post_id, AutoDocs_Sync_Meta::META_FOLDER_ID, $folder_id);
+        if ($folder_name !== '') {
+            update_post_meta($post_id, AutoDocs_Sync_Meta::META_FOLDER_NAME, sanitize_text_field($folder_name));
+        }
         update_post_meta($post_id, AutoDocs_Sync_Meta::META_MODIFIED, $doc_file['modifiedTime']);
         update_post_meta($post_id, AutoDocs_Sync_Meta::META_STATUS, 'synced');
         update_post_meta($post_id, AutoDocs_Sync_Meta::META_LAST_SYNCED, current_time('mysql'));

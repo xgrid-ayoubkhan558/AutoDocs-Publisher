@@ -95,12 +95,17 @@ if (!defined('ABSPATH')) {
                                     <li class="description"><?php esc_html_e('No synced posts yet.', 'autodocs-publisher'); ?></li>
                                 <?php else : ?>
                                     <?php foreach ($recent_syncs as $row) : ?>
-                                        <li class="autodocs-recent-syncs__item">
+                                        <li class="autodocs-recent-syncs__item" data-post-id="<?php echo esc_attr((string) ($row['post_id'] ?? 0)); ?>">
+                                            <span class="autodocs-recent-syncs__main">
                                             <?php if (! empty($row['edit_url'])) : ?>
                                                 <a href="<?php echo esc_url($row['edit_url']); ?>"><?php echo esc_html($row['title'] ?: __('(no title)', 'autodocs-publisher')); ?></a>
                                             <?php else : ?>
                                                 <span><?php echo esc_html($row['title'] ?: __('(no title)', 'autodocs-publisher')); ?></span>
                                             <?php endif; ?>
+                                            <?php if (! empty($row['subtitle'])) : ?>
+                                                <span class="autodocs-recent-syncs__subtitle"><?php echo esc_html($row['subtitle']); ?></span>
+                                            <?php endif; ?>
+                                            </span>
                                             <span class="autodocs-recent-syncs__meta">
                                                 <?php if (! empty($row['sync_source_label'])) : ?>
                                                     <span class="autodocs-recent-syncs__source autodocs-recent-syncs__source--<?php echo esc_attr($row['sync_source']); ?>"><?php echo esc_html($row['sync_source_label']); ?></span>

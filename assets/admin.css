@@ -530,13 +530,25 @@
 }
 
 .autodocs-recent-syncs__item {
-    align-items: baseline;
+    align-items: flex-start;
     border-top: 1px solid #f0f0f1;
     display: flex;
     flex-wrap: wrap;
     gap: 8px 16px;
     justify-content: space-between;
     padding: 8px 0;
+}
+
+.autodocs-recent-syncs__main {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.autodocs-recent-syncs__subtitle {
+    color: #646970;
+    font-size: 12px;
 }
 
 .autodocs-recent-syncs__item:first-child {

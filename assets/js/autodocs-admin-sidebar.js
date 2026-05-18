@@ -105,13 +105,29 @@
             );
             return;
         }
+        var seenIds = {};
         items.forEach(function (row) {
-            var li = A.el('li', { class: 'autodocs-recent-syncs__item' });
-            if (row.edit_url) {
-                li.appendChild(A.el('a', { href: row.edit_url, text: row.title || '(no title)' }));
-            } else {
-                li.appendChild(A.el('span', { text: row.title || '(no title)' }));
+            var postId = row.post_id ? parseInt(row.post_id, 10) : 0;
+            if (postId > 0) {
+                if (seenIds[postId]) {
+                    return;
+                }
+                seenIds[postId] = true;
             }
+            var li = A.el('li', { class: 'autodocs-recent-syncs__item' });
+            if (postId > 0) {
+                li.setAttribute('data-post-id', String(postId));
+            }
+            var main = A.el('span', { class: 'autodocs-recent-syncs__main' });
+            if (row.edit_url) {
+                main.appendChild(A.el('a', { href: row.edit_url, text: row.title || '(no title)' }));
+            } else {
+                main.appendChild(A.el('span', { text: row.title || '(no title)' }));
+            }
+            if (row.subtitle) {
+                main.appendChild(A.el('span', { class: 'autodocs-recent-syncs__subtitle', text: row.subtitle }));
+            }
+            li.appendChild(main);
             var meta = A.el('span', { class: 'autodocs-recent-syncs__meta' });
             if (row.sync_source_label) {
                 var srcClass = 'autodocs-recent-syncs__source';
