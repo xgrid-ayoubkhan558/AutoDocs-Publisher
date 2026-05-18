@@ -41,6 +41,13 @@ final class AutoDocs_Admin_Localization
             'acfImportDefaults' => AutoDocs_Acf_Helpers::import_body_field_map(),
             'acfSelectCustomValue' => AutoDocs_Acf_Helpers::SELECT_CUSTOM_VALUE,
             'cronIntervals' => AutoDocs_Cron::interval_labels(),
+            'cron' => array(
+                'siteTzIntl' => AutoDocs_Cron::timezone_for_intl(),
+                'siteTzLabel' => AutoDocs_Cron::timezone_label(),
+                'gmtOffsetHours' => AutoDocs_Cron::site_gmt_offset_hours(),
+                'nextRunTs' => AutoDocs_Cron::next_run_timestamp(),
+                'generalSettingsUrl' => admin_url('options-general.php'),
+            ),
             'i18n' => array(
                 'browseDrive' => __('Browse Drive…', 'autodocs-publisher'),
                 'up' => __('Up', 'autodocs-publisher'),
@@ -106,6 +113,9 @@ final class AutoDocs_Admin_Localization
                 'cronTwice' => __('Runs twice daily at %1$s and %2$s (%3$s). Save settings to apply.', 'autodocs-publisher'),
                 'cronInterval' => __('Runs %1$s. Save settings to apply. Time of day applies only to daily schedules.', 'autodocs-publisher'),
                 'cronWpNote' => __('WordPress runs scheduled tasks when your site receives visits or when a server cron hits wp-cron.php.', 'autodocs-publisher'),
+                'cronTzMismatch' => __('Your computer uses %1$s, but WordPress is set to %2$s. Scheduled times use the WordPress timezone — change it under Settings → General so “Next run” matches your clock.', 'autodocs-publisher'),
+                'cronNextRunEstimate' => __('Estimated after save (site time):', 'autodocs-publisher'),
+                'cronNextRunScheduled' => __('Scheduled (site time):', 'autodocs-publisher'),
                 'categoriesFromDoc' => __('Use categories from document meta', 'autodocs-publisher'),
                 'categoriesManual' => __('Choose WordPress categories below', 'autodocs-publisher'),
                 'tagsFromDoc' => __('Use tags from document meta', 'autodocs-publisher'),

@@ -25,6 +25,28 @@ trait AutoDocs_Admin_Ajax_Trait
         }
     }
 
+    public function ajax_cron_preview()
+    {
+        check_ajax_referer('autodocs_sync_now', 'nonce');
+
+        if (! current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('Permission denied.', 'autodocs-publisher')), 403);
+        }
+
+        $interval = isset($_POST['interval']) ? sanitize_key(wp_unslash($_POST['interval'])) : 'hourly';
+        $cron_time = isset($_POST['cron_time']) ? sanitize_text_field(wp_unslash($_POST['cron_time'])) : '03:00';
+        $enabled = ! empty($_POST['enabled']);
+
+        $ts = AutoDocs_Cron::preview_next_timestamp($interval, $cron_time, $enabled);
+
+        wp_send_json_success(
+            array(
+                'next_run' => $ts > 0 ? AutoDocs_Cron::format_timestamp($ts) : '',
+                'site_now' => AutoDocs_Cron::site_now_formatted(),
+            )
+        );
+    }
+
     public function ajax_sync_now()
     {
         check_ajax_referer('autodocs_sync_now', 'nonce');

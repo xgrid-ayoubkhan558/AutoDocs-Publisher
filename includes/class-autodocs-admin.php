@@ -44,6 +44,7 @@ class AutoDocs_Admin
         add_action('wp_ajax_autodocs_import_new_folder', array($this, 'ajax_import_new_folder'));
         add_action('wp_ajax_autodocs_bulk_import_folders', array($this, 'ajax_bulk_import_folders'));
         add_action('wp_ajax_autodocs_google_oauth_callback', array($this, 'ajax_google_oauth_callback'));
+        add_action('wp_ajax_autodocs_cron_preview', array($this, 'ajax_cron_preview'));
         add_action('wp_ajax_nopriv_autodocs_google_oauth_callback', array($this, 'ajax_google_oauth_callback'));
 
         foreach (get_post_types(array('show_ui' => true), 'names') as $post_type) {
@@ -228,7 +229,10 @@ class AutoDocs_Admin
         $cron_next_run = $cron_enabled ? AutoDocs_Cron::next_run_formatted() : '';
         $cron_last_run = AutoDocs_Cron::last_run_formatted();
         $cron_schedule_description = AutoDocs_Cron::schedule_description($this->settings);
-        $cron_timezone = wp_timezone_string();
+        $cron_timezone_label = AutoDocs_Cron::timezone_label();
+        $cron_site_time_now = AutoDocs_Cron::site_now_formatted();
+        $cron_show_time = in_array($cron_interval, array('daily', 'twicedaily'), true);
+        $cron_general_settings_url = admin_url('options-general.php');
         $recent_syncs = $this->sync_service->list_recent_synced_posts(12);
 
         include AUTODOCS_PUBLISHER_DIR . 'includes/admin/views/settings-page.php';

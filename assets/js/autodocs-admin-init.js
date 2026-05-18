@@ -281,25 +281,17 @@
         var timeInput = A.qs('#autodocs-cron-time');
         var summary = A.qs('#autodocs-cron-schedule-summary');
         var timeRow = A.qs('#autodocs-cron-time-row');
-        var tz = section.getAttribute('data-timezone') || '';
+        var nextRunEl = A.qs('#autodocs-cron-next-run');
+        var nextRunHint = A.qs('#autodocs-cron-next-run-hint');
+        var siteNowEl = A.qs('#autodocs-cron-site-now');
+        var tzWarn = A.qs('#autodocs-cron-tz-warn');
         var pub = typeof AutoDocsPublisher !== 'undefined' ? AutoDocsPublisher : {};
+        var cron = pub.cron || {};
         var i18n = pub.i18n || {};
         var intervalLabels = pub.cronIntervals || {};
-
-        function pad(n) {
-            return n < 10 ? '0' + n : String(n);
-        }
-
-        function parseTime(val) {
-            var m = /^(\d{1,2}):(\d{2})$/.exec(val || '');
-            if (!m) {
-                return { hour: 3, minute: 0 };
-            }
-            return {
-                hour: Math.max(0, Math.min(23, parseInt(m[1], 10))),
-                minute: Math.max(0, Math.min(59, parseInt(m[2], 10)))
-            };
-        }
+        var tzLabel = section.getAttribute('data-timezone-label') || cron.siteTzLabel || '';
+        var previewTimer = null;
+        var savedNextTs = parseInt(section.getAttribute('data-next-ts') || '0', 10);
 
         function formatTpl(tpl) {
             var args = Array.prototype.slice.call(arguments, 1);
@@ -309,7 +301,38 @@
             });
         }
 
-        function update() {
+        function browserTimezoneLabel() {
+            try {
+                return Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+            } catch (err) {
+                return '';
+            }
+        }
+
+        function checkTimezoneMismatch() {
+            if (!tzWarn) {
+                return;
+            }
+            var siteOffsetHours = parseFloat(section.getAttribute('data-gmt-offset') || String(cron.gmtOffsetHours || 0));
+            var browserOffsetMin = -new Date().getTimezoneOffset();
+            var siteOffsetMin = Math.round(siteOffsetHours * 60);
+            if (Math.abs(browserOffsetMin - siteOffsetMin) <= 1) {
+                tzWarn.hidden = true;
+                tzWarn.textContent = '';
+                return;
+            }
+            var browserTz = browserTimezoneLabel();
+            var browserLabel = browserTz || formatTpl('UTC%+d', browserOffsetMin / 60);
+            tzWarn.hidden = false;
+            tzWarn.textContent = formatTpl(
+                i18n.cronTzMismatch ||
+                    'Your computer uses %1$s, but WordPress is set to %2$s. Scheduled times use the WordPress timezone.',
+                browserLabel,
+                tzLabel
+            );
+        }
+
+        function updateSummary() {
             var iv = interval ? interval.value : 'hourly';
             var showTime = iv === 'daily' || iv === 'twicedaily';
             if (timeRow) {
@@ -320,27 +343,98 @@
             }
             if (!enabled || !enabled.checked) {
                 summary.textContent = i18n.cronDisabled || 'Automatic sync is disabled.';
+                if (nextRunEl) {
+                    nextRunEl.textContent =
+                        i18n.cronDisabled || 'Automatic sync is disabled.';
+                }
+                if (nextRunHint) {
+                    nextRunHint.textContent = '';
+                }
                 return;
             }
-            var t = parseTime(timeInput ? timeInput.value : '03:00');
-            var timeFmt = pad(t.hour) + ':' + pad(t.minute);
             var text = '';
-            if (iv === 'daily') {
-                text = formatTpl(i18n.cronDaily || 'Runs once per day at %1$s (%2$s).', timeFmt, tz);
-            } else if (iv === 'twicedaily') {
-                var h2 = (t.hour + 12) % 24;
-                text = formatTpl(
-                    i18n.cronTwice || 'Runs twice daily at %1$s and %2$s (%3$s).',
-                    timeFmt,
-                    pad(h2) + ':' + pad(t.minute),
-                    tz
-                );
+            if (iv === 'daily' || iv === 'twicedaily') {
+                text =
+                    i18n.cronDailyHint ||
+                    'Time of day uses WordPress site time (see clock above). Save settings to apply.';
             } else {
                 var label = intervalLabels[iv] || iv;
-                text = formatTpl(i18n.cronInterval || 'Runs %1$s.', label.toLowerCase());
+                text = formatTpl(
+                    i18n.cronInterval ||
+                        'Runs %1$s. Next run is about one minute after you save. Time of day applies only to daily schedules.',
+                    label.toLowerCase()
+                );
             }
             var note = i18n.cronWpNote || '';
             summary.textContent = note ? text + ' ' + note : text;
+        }
+
+        function fetchPreview() {
+            if (!nextRunEl || typeof AutoDocsPublisher === 'undefined' || !AutoDocsPublisher.ajaxUrl) {
+                return;
+            }
+            var iv = interval ? interval.value : 'hourly';
+            var isOn = enabled && enabled.checked;
+            if (!isOn) {
+                return;
+            }
+            var body = new URLSearchParams();
+            body.set('action', 'autodocs_cron_preview');
+            body.set('nonce', AutoDocsPublisher.nonce);
+            body.set('interval', iv);
+            body.set('cron_time', timeInput ? timeInput.value : '03:00');
+            body.set('enabled', '1');
+
+            fetch(AutoDocsPublisher.ajaxUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: body.toString()
+            })
+                .then(function (r) {
+                    return r.json();
+                })
+                .then(function (json) {
+                    if (!json || !json.success || !json.data) {
+                        return;
+                    }
+                    if (json.data.next_run) {
+                        nextRunEl.textContent = json.data.next_run;
+                    }
+                    if (siteNowEl && json.data.site_now) {
+                        siteNowEl.textContent = json.data.site_now;
+                    }
+                    if (nextRunHint) {
+                        nextRunHint.textContent = i18n.cronNextRunEstimate || 'Estimated after save (site time):';
+                    }
+                })
+                .catch(function () {});
+        }
+
+        function schedulePreview() {
+            clearTimeout(previewTimer);
+            previewTimer = setTimeout(fetchPreview, 200);
+        }
+
+        function update() {
+            checkTimezoneMismatch();
+            updateSummary();
+            if (!enabled || !enabled.checked) {
+                return;
+            }
+            var iv = interval ? interval.value : 'hourly';
+            if (iv === 'daily' || iv === 'twicedaily') {
+                schedulePreview();
+            } else {
+                schedulePreview();
+                if (nextRunHint) {
+                    nextRunHint.textContent = i18n.cronNextRunEstimate || 'Estimated after save (site time):';
+                }
+            }
+        }
+
+        if (nextRunEl && savedNextTs > 0 && nextRunHint) {
+            nextRunHint.textContent = i18n.cronNextRunScheduled || 'Scheduled (site time):';
         }
 
         [enabled, interval, timeInput].forEach(function (el) {

@@ -80,6 +80,95 @@ final class AutoDocs_Cron
     }
 
     /**
+     * Friendly timezone label (city name or UTC offset).
+     *
+     * @return string
+     */
+    public static function timezone_label()
+    {
+        $tz_string = (string) get_option('timezone_string', '');
+        if ($tz_string !== '') {
+            try {
+                $tz = new DateTimeZone($tz_string);
+                $now = new DateTimeImmutable('now', $tz);
+
+                return sprintf('%s (%s)', $tz_string, $now->format('P'));
+            } catch (Exception $e) {
+                return $tz_string;
+            }
+        }
+
+        $offset = (float) get_option('gmt_offset', 0);
+        if (0.0 === $offset) {
+            return __('UTC', 'autodocs-publisher');
+        }
+
+        $sign = $offset >= 0 ? '+' : '-';
+        $abs = abs($offset);
+        $hours = (int) floor($abs);
+        $minutes = (int) round(($abs - $hours) * 60);
+
+        return sprintf('UTC%s%d:%02d', $sign, $hours, $minutes);
+    }
+
+    /**
+     * IANA timezone for JavaScript Intl (maps offset-only WP installs).
+     *
+     * @return string
+     */
+    public static function timezone_for_intl()
+    {
+        $tz_string = (string) get_option('timezone_string', '');
+        if ($tz_string !== '' && false !== strpos($tz_string, '/')) {
+            return $tz_string;
+        }
+
+        $offset = (float) get_option('gmt_offset', 0);
+        if (0.0 === $offset) {
+            return 'UTC';
+        }
+
+        $hours = (int) abs($offset);
+        $sign = $offset > 0 ? '-' : '+';
+
+        return 'Etc/GMT' . $sign . $hours;
+    }
+
+    /**
+     * @return float Hours east of UTC (WordPress gmt_offset).
+     */
+    public static function site_gmt_offset_hours()
+    {
+        return (float) get_option('gmt_offset', 0);
+    }
+
+    /**
+     * @param int $timestamp Unix timestamp (UTC).
+     * @return string
+     */
+    public static function format_timestamp($timestamp)
+    {
+        $timestamp = (int) $timestamp;
+        if ($timestamp <= 0) {
+            return '';
+        }
+
+        return sprintf(
+            '%s (%s)',
+            wp_date(get_option('date_format') . ' ' . get_option('time_format'), $timestamp),
+            self::timezone_label()
+        );
+    }
+
+    /**
+     * @return string Current clock time on the WordPress site.
+     */
+    public static function site_now_formatted()
+    {
+        return wp_date(get_option('time_format'), time()) . ' (' . self::timezone_label() . ')';
+    }
+
+    /**
      * @param string $raw HH:MM or H:MM
      * @return array{hour: int, minute: int}
      */
@@ -131,6 +220,44 @@ final class AutoDocs_Cron
     }
 
     /**
+     * Estimated next run for unsaved settings (preview).
+     *
+     * @param string $interval
+     * @param string $cron_time
+     * @param bool   $enabled
+     * @return int Unix timestamp or 0.
+     */
+    public static function preview_next_timestamp($interval, $cron_time, $enabled)
+    {
+        if (! $enabled) {
+            return 0;
+        }
+
+        $interval = is_string($interval) ? $interval : 'hourly';
+        $time = self::parse_cron_time($cron_time);
+        $now = time();
+
+        if (in_array($interval, array('daily', 'twicedaily'), true)) {
+            return self::next_timestamp_for_clock_time($time['hour'], $time['minute'], $now);
+        }
+
+        return $now + MINUTE_IN_SECONDS;
+    }
+
+    /**
+     * @param int $hour
+     * @param int $minute
+     * @return string e.g. 3:05 AM (uses WordPress time format).
+     */
+    public static function format_clock_time($hour, $minute)
+    {
+        $tz = wp_timezone();
+        $dt = (new DateTimeImmutable('now', $tz))->setTime($hour, $minute, 0);
+
+        return wp_date(get_option('time_format'), $dt->getTimestamp());
+    }
+
+    /**
      * @param AutoDocs_Settings|null $settings
      */
     public static function reschedule($settings = null)
@@ -170,9 +297,8 @@ final class AutoDocs_Cron
         $labels = self::interval_labels();
         $label = isset($labels[$interval]) ? $labels[$interval] : $labels['hourly'];
         $time = self::parse_cron_time((string) $settings->get('cron_time', '03:00'));
-        $time_fmt = sprintf('%02d:%02d', $time['hour'], $time['minute']);
-        $tz = wp_timezone_string();
-        $tz_label = $tz !== '' ? $tz : __('site time', 'autodocs-publisher');
+        $time_fmt = self::format_clock_time($time['hour'], $time['minute']);
+        $tz_label = self::timezone_label();
 
         $parts = array();
 
@@ -184,12 +310,12 @@ final class AutoDocs_Cron
                 $tz_label
             );
         } elseif ($interval === 'twicedaily') {
-            $second = self::parse_cron_time(sprintf('%02d:%02d', ($time['hour'] + 12) % 24, $time['minute']));
+            $second_h = ($time['hour'] + 12) % 24;
             $parts[] = sprintf(
                 /* translators: 1: first time, 2: second time, 3: timezone */
                 __('Runs twice daily at %1$s and %2$s (%3$s).', 'autodocs-publisher'),
                 $time_fmt,
-                sprintf('%02d:%02d', $second['hour'], $second['minute']),
+                self::format_clock_time($second_h, $time['minute']),
                 $tz_label
             );
         } elseif (in_array($interval, array('15min', '30min', 'hourly', '6hours'), true)) {
@@ -247,10 +373,7 @@ final class AutoDocs_Cron
             return '';
         }
 
-        return (string) wp_date(
-            get_option('date_format') . ' ' . get_option('time_format'),
-            $ts
-        );
+        return self::format_timestamp((int) $ts);
     }
 
     /**
@@ -273,9 +396,11 @@ final class AutoDocs_Cron
             return '';
         }
 
-        return (string) mysql2date(
-            get_option('date_format') . ' ' . get_option('time_format'),
-            $raw
-        );
+        $dt = date_create_from_format('Y-m-d H:i:s', $raw, wp_timezone());
+        if (! $dt) {
+            return '';
+        }
+
+        return self::format_timestamp($dt->getTimestamp());
     }
 }

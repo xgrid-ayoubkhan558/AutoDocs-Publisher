@@ -181,9 +181,16 @@ final class AutoDocs_Sync_Repository
                 continue;
             }
             $last = (string) get_post_meta($post_id, AutoDocs_Sync_Meta::META_LAST_SYNCED, true);
-            $formatted = $last !== ''
-                ? (string) mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $last)
-                : '';
+            $formatted = '';
+            if ($last !== '') {
+                $dt = date_create_from_format('Y-m-d H:i:s', $last, wp_timezone());
+                if ($dt) {
+                    $formatted = wp_date(
+                        get_option('date_format') . ' ' . get_option('time_format'),
+                        $dt->getTimestamp()
+                    );
+                }
+            }
             $edit = get_edit_post_link($post_id, 'raw');
             $source = (string) get_post_meta($post_id, AutoDocs_Sync_Meta::META_LAST_SYNC_SOURCE, true);
             $out[] = array(
