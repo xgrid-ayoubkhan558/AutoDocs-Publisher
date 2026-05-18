@@ -267,5 +267,88 @@
                 A.refreshDashboardSidebar(true);
             }
         }
+
+        A.bindCronSettingsPreview();
     });
+
+    A.bindCronSettingsPreview = function () {
+        var section = A.qs('#autodocs-cron-settings');
+        if (!section) {
+            return;
+        }
+        var enabled = A.qs('#autodocs-cron-enabled');
+        var interval = A.qs('#autodocs-cron-interval');
+        var timeInput = A.qs('#autodocs-cron-time');
+        var summary = A.qs('#autodocs-cron-schedule-summary');
+        var timeRow = A.qs('#autodocs-cron-time-row');
+        var tz = section.getAttribute('data-timezone') || '';
+        var pub = typeof AutoDocsPublisher !== 'undefined' ? AutoDocsPublisher : {};
+        var i18n = pub.i18n || {};
+        var intervalLabels = pub.cronIntervals || {};
+
+        function pad(n) {
+            return n < 10 ? '0' + n : String(n);
+        }
+
+        function parseTime(val) {
+            var m = /^(\d{1,2}):(\d{2})$/.exec(val || '');
+            if (!m) {
+                return { hour: 3, minute: 0 };
+            }
+            return {
+                hour: Math.max(0, Math.min(23, parseInt(m[1], 10))),
+                minute: Math.max(0, Math.min(59, parseInt(m[2], 10)))
+            };
+        }
+
+        function formatTpl(tpl) {
+            var args = Array.prototype.slice.call(arguments, 1);
+            var i = 0;
+            return tpl.replace(/%(\d+)\$s/g, function () {
+                return args[i++] !== undefined ? args[i - 1] : '';
+            });
+        }
+
+        function update() {
+            var iv = interval ? interval.value : 'hourly';
+            var showTime = iv === 'daily' || iv === 'twicedaily';
+            if (timeRow) {
+                timeRow.hidden = !showTime;
+            }
+            if (!summary) {
+                return;
+            }
+            if (!enabled || !enabled.checked) {
+                summary.textContent = i18n.cronDisabled || 'Automatic sync is disabled.';
+                return;
+            }
+            var t = parseTime(timeInput ? timeInput.value : '03:00');
+            var timeFmt = pad(t.hour) + ':' + pad(t.minute);
+            var text = '';
+            if (iv === 'daily') {
+                text = formatTpl(i18n.cronDaily || 'Runs once per day at %1$s (%2$s).', timeFmt, tz);
+            } else if (iv === 'twicedaily') {
+                var h2 = (t.hour + 12) % 24;
+                text = formatTpl(
+                    i18n.cronTwice || 'Runs twice daily at %1$s and %2$s (%3$s).',
+                    timeFmt,
+                    pad(h2) + ':' + pad(t.minute),
+                    tz
+                );
+            } else {
+                var label = intervalLabels[iv] || iv;
+                text = formatTpl(i18n.cronInterval || 'Runs %1$s.', label.toLowerCase());
+            }
+            var note = i18n.cronWpNote || '';
+            summary.textContent = note ? text + ' ' + note : text;
+        }
+
+        [enabled, interval, timeInput].forEach(function (el) {
+            if (el) {
+                el.addEventListener('change', update);
+                el.addEventListener('input', update);
+            }
+        });
+        update();
+    };
 })(window);

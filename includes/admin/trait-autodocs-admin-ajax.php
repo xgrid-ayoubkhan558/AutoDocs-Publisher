@@ -34,7 +34,7 @@ trait AutoDocs_Admin_Ajax_Trait
         }
 
         $this->sync_service->refresh_known_statuses();
-        $result = $this->sync_service->sync_all(true);
+        $result = $this->sync_service->sync_all(true, AutoDocs_Sync_Meta::SYNC_SOURCE_MANUAL);
         wp_send_json_success($result);
     }
 

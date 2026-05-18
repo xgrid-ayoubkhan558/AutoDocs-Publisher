@@ -224,8 +224,12 @@ class AutoDocs_Admin
 
         $cron_enabled = isset($settings['cron_enabled']) && $settings['cron_enabled'] === '1';
         $cron_interval = isset($settings['cron_interval']) ? (string) $settings['cron_interval'] : 'hourly';
+        $cron_time = isset($settings['cron_time']) ? (string) $settings['cron_time'] : '03:00';
         $cron_next_run = $cron_enabled ? AutoDocs_Cron::next_run_formatted() : '';
         $cron_last_run = AutoDocs_Cron::last_run_formatted();
+        $cron_schedule_description = AutoDocs_Cron::schedule_description($this->settings);
+        $cron_timezone = wp_timezone_string();
+        $recent_syncs = $this->sync_service->list_recent_synced_posts(12);
 
         include AUTODOCS_PUBLISHER_DIR . 'includes/admin/views/settings-page.php';
     }

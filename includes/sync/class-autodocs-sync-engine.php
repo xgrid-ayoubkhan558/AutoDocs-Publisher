@@ -26,6 +26,9 @@ final class AutoDocs_Sync_Engine
     /** @var AutoDocs_Sync_Status_Manager */
     private $status;
 
+    /** @var string */
+    private $sync_source = AutoDocs_Sync_Meta::SYNC_SOURCE_MANUAL;
+
     public function __construct(
         AutoDocs_Settings $settings,
         AutoDocs_Google_Client $google_client,
@@ -38,6 +41,16 @@ final class AutoDocs_Sync_Engine
         $this->repository = $repository;
         $this->media = $media;
         $this->status = $status;
+    }
+
+    /**
+     * @param string $source One of AutoDocs_Sync_Meta::SYNC_SOURCE_*.
+     */
+    public function set_sync_source($source)
+    {
+        $this->sync_source = is_string($source) && $source !== ''
+            ? $source
+            : AutoDocs_Sync_Meta::SYNC_SOURCE_MANUAL;
     }
 
     public function sync_all_configured_folders()
@@ -82,7 +95,9 @@ final class AutoDocs_Sync_Engine
             }
         }
 
-        update_option(AutoDocs_Sync_Meta::OPTION_LAST_SITE_SYNC, current_time('mysql'), false);
+        if (AutoDocs_Sync_Meta::SYNC_SOURCE_MANUAL === $this->sync_source) {
+            update_option(AutoDocs_Sync_Meta::OPTION_LAST_SITE_SYNC, current_time('mysql'), false);
+        }
 
         return $results;
     }
@@ -236,6 +251,7 @@ final class AutoDocs_Sync_Engine
         update_post_meta($saved_id, AutoDocs_Sync_Meta::META_MODIFIED, $doc_file['modifiedTime']);
         update_post_meta($saved_id, AutoDocs_Sync_Meta::META_STATUS, 'synced');
         update_post_meta($saved_id, AutoDocs_Sync_Meta::META_LAST_SYNCED, current_time('mysql'));
+        update_post_meta($saved_id, AutoDocs_Sync_Meta::META_LAST_SYNC_SOURCE, $this->sync_source);
         update_post_meta($saved_id, AutoDocs_Sync_Meta::META_CONTENT_HASH, $body_hash);
         update_post_meta($saved_id, AutoDocs_Sync_Meta::META_SOURCE_ROOT, $root_folder_id);
         if ('created' === $action && ! get_post_meta($saved_id, AutoDocs_Sync_Meta::META_FIRST_IMPORTED, true)) {

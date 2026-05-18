@@ -23,6 +23,7 @@ class AutoDocs_Settings
             'folder_missing' => '',
             'cron_enabled' => '1',
             'cron_interval' => 'hourly',
+            'cron_time' => '03:00',
         );
 
         if (false === get_option(self::OPTION_NAME, false)) {
@@ -67,7 +68,19 @@ class AutoDocs_Settings
             'folder_missing' => isset($input['folder_missing']) ? sanitize_text_field($input['folder_missing']) : '',
             'cron_enabled' => ! empty($input['cron_enabled']) ? '1' : '',
             'cron_interval' => $this->sanitize_cron_interval(isset($input['cron_interval']) ? $input['cron_interval'] : ''),
+            'cron_time' => $this->sanitize_cron_time(isset($input['cron_time']) ? $input['cron_time'] : ''),
         );
+    }
+
+    /**
+     * @param mixed $value
+     * @return string HH:MM
+     */
+    private function sanitize_cron_time($value)
+    {
+        $parsed = AutoDocs_Cron::parse_cron_time(is_string($value) ? $value : '');
+
+        return sprintf('%02d:%02d', $parsed['hour'], $parsed['minute']);
     }
 
     /**
@@ -96,6 +109,7 @@ class AutoDocs_Settings
             'folder_missing' => '',
             'cron_enabled' => '1',
             'cron_interval' => 'hourly',
+            'cron_time' => '03:00',
         ));
     }
 

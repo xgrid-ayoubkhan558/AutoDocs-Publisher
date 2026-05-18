@@ -544,6 +544,39 @@
     padding-top: 0;
 }
 
+.autodocs-recent-syncs__meta {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    margin-left: auto;
+}
+
+.autodocs-recent-syncs__source {
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1.4;
+    padding: 2px 7px;
+    text-transform: uppercase;
+}
+
+.autodocs-recent-syncs__source--cron {
+    background: #e7f5fe;
+    color: #135e96;
+}
+
+.autodocs-recent-syncs__source--manual {
+    background: #f0f6fc;
+    color: #2271b1;
+}
+
+.autodocs-recent-syncs__source--import {
+    background: #edfaef;
+    color: #1e4620;
+}
+
 .autodocs-recent-syncs__time {
     color: #646970;
     font-size: 12px;
@@ -561,6 +594,34 @@
 .autodocs-cron-settings__title {
     font-size: 14px;
     margin: 0 0 8px;
+}
+
+.autodocs-cron-settings__row {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+}
+
+.autodocs-cron-settings__row--time input[type='time'] {
+    max-width: 140px;
+}
+
+.autodocs-cron-settings__tz {
+    flex: 1 1 100%;
+    margin: 0;
+}
+
+.autodocs-cron-settings__schedule {
+    background: #f6f7f7;
+    border-left: 3px solid #2271b1;
+    margin: 12px 0 8px;
+    max-width: 640px;
+    padding: 10px 12px;
+}
+
+.autodocs-cron-settings__save-hint {
+    margin: 0 0 12px;
 }
 
 .autodocs-cron-settings__meta {

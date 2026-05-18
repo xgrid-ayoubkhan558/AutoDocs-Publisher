@@ -108,15 +108,25 @@
         items.forEach(function (row) {
             var li = A.el('li', { class: 'autodocs-recent-syncs__item' });
             if (row.edit_url) {
-                var link = A.el('a', { href: row.edit_url, text: row.title || '(no title)' });
-                li.appendChild(link);
+                li.appendChild(A.el('a', { href: row.edit_url, text: row.title || '(no title)' }));
             } else {
                 li.appendChild(A.el('span', { text: row.title || '(no title)' }));
             }
+            var meta = A.el('span', { class: 'autodocs-recent-syncs__meta' });
+            if (row.sync_source_label) {
+                var srcClass = 'autodocs-recent-syncs__source';
+                if (row.sync_source) {
+                    srcClass += ' autodocs-recent-syncs__source--' + row.sync_source;
+                }
+                meta.appendChild(A.el('span', { class: srcClass, text: row.sync_source_label }));
+            }
             if (row.last_synced_formatted) {
-                li.appendChild(
+                meta.appendChild(
                     A.el('span', { class: 'autodocs-recent-syncs__time', text: row.last_synced_formatted })
                 );
+            }
+            if (meta.childNodes.length) {
+                li.appendChild(meta);
             }
             list.appendChild(li);
         });

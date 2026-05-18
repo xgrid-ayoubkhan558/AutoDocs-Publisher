@@ -486,6 +486,7 @@ final class AutoDocs_Sync_Import
         update_post_meta($post_id, AutoDocs_Sync_Meta::META_MODIFIED, $doc_file['modifiedTime']);
         update_post_meta($post_id, AutoDocs_Sync_Meta::META_STATUS, 'synced');
         update_post_meta($post_id, AutoDocs_Sync_Meta::META_LAST_SYNCED, current_time('mysql'));
+        update_post_meta($post_id, AutoDocs_Sync_Meta::META_LAST_SYNC_SOURCE, AutoDocs_Sync_Meta::SYNC_SOURCE_IMPORT);
         update_post_meta($post_id, AutoDocs_Sync_Meta::META_CONTENT_HASH, hash('sha256', $body_html));
         update_post_meta($post_id, AutoDocs_Sync_Meta::META_SOURCE_ROOT, $source_bucket_id);
         if (! get_post_meta($post_id, AutoDocs_Sync_Meta::META_FIRST_IMPORTED, true)) {

@@ -156,7 +156,7 @@ final class AutoDocs_Sync_Repository
 
     /**
      * @param int $limit
-     * @return array<int, array{post_id: int, title: string, edit_url: string, last_synced_formatted: string, post_type: string}>
+     * @return array<int, array{post_id: int, title: string, edit_url: string, last_synced_formatted: string, post_type: string, sync_source: string, sync_source_label: string}>
      */
     public function list_recent_synced_posts($limit = 10)
     {
@@ -185,12 +185,15 @@ final class AutoDocs_Sync_Repository
                 ? (string) mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $last)
                 : '';
             $edit = get_edit_post_link($post_id, 'raw');
+            $source = (string) get_post_meta($post_id, AutoDocs_Sync_Meta::META_LAST_SYNC_SOURCE, true);
             $out[] = array(
                 'post_id' => $post_id,
                 'title' => get_the_title($post_id),
                 'edit_url' => $edit ? (string) $edit : '',
                 'last_synced_formatted' => $formatted,
                 'post_type' => get_post_type($post_id) ?: '',
+                'sync_source' => $source,
+                'sync_source_label' => AutoDocs_Sync_Meta::sync_source_label($source),
             );
         }
 

@@ -90,8 +90,28 @@ if (!defined('ABSPATH')) {
                         <section class="autodocs-recent-syncs" id="autodocs-recent-syncs" aria-labelledby="autodocs-recent-syncs-title">
                             <h3 class="autodocs-recent-syncs__title" id="autodocs-recent-syncs-title"><?php esc_html_e('Recently synced / imported', 'autodocs-publisher'); ?></h3>
                             <p class="description autodocs-recent-syncs__hint"><?php esc_html_e('WordPress posts updated from Drive by manual sync, import, or automatic sync.', 'autodocs-publisher'); ?></p>
-                            <ul id="autodocs-recent-syncs-list" class="autodocs-recent-syncs__list">
-                                <li class="description"><?php esc_html_e('Loading…', 'autodocs-publisher'); ?></li>
+                            <ul id="autodocs-recent-syncs-list" class="autodocs-recent-syncs__list" data-initial-recent="1">
+                                <?php if (empty($recent_syncs)) : ?>
+                                    <li class="description"><?php esc_html_e('No synced posts yet.', 'autodocs-publisher'); ?></li>
+                                <?php else : ?>
+                                    <?php foreach ($recent_syncs as $row) : ?>
+                                        <li class="autodocs-recent-syncs__item">
+                                            <?php if (! empty($row['edit_url'])) : ?>
+                                                <a href="<?php echo esc_url($row['edit_url']); ?>"><?php echo esc_html($row['title'] ?: __('(no title)', 'autodocs-publisher')); ?></a>
+                                            <?php else : ?>
+                                                <span><?php echo esc_html($row['title'] ?: __('(no title)', 'autodocs-publisher')); ?></span>
+                                            <?php endif; ?>
+                                            <span class="autodocs-recent-syncs__meta">
+                                                <?php if (! empty($row['sync_source_label'])) : ?>
+                                                    <span class="autodocs-recent-syncs__source autodocs-recent-syncs__source--<?php echo esc_attr($row['sync_source']); ?>"><?php echo esc_html($row['sync_source_label']); ?></span>
+                                                <?php endif; ?>
+                                                <?php if (! empty($row['last_synced_formatted'])) : ?>
+                                                    <span class="autodocs-recent-syncs__time"><?php echo esc_html($row['last_synced_formatted']); ?></span>
+                                                <?php endif; ?>
+                                            </span>
+                                        </li>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
                             </ul>
                         </section>
                         <div class="autodocs-articles-subtabs" data-autodocs-article-subtabs>
@@ -212,25 +232,41 @@ if (!defined('ABSPATH')) {
                     </div>
 
                     <div id="autodocs-tab-panel-settings" class="autodocs-tab-panel autodocs-tab-panel--settings<?php echo 'settings' === $current_tab ? ' is-active' : ''; ?>" role="tabpanel" aria-labelledby="autodocs-tabbtn-settings" tabindex="0">
-                    <section class="autodocs-cron-settings">
+                    <section
+                        class="autodocs-cron-settings"
+                        id="autodocs-cron-settings"
+                        data-timezone="<?php echo esc_attr($cron_timezone); ?>"
+                        data-next-ts="<?php echo esc_attr((string) AutoDocs_Cron::next_run_timestamp()); ?>"
+                    >
                         <h3 class="autodocs-cron-settings__title"><?php esc_html_e('Automatic sync', 'autodocs-publisher'); ?></h3>
                         <p class="description"><?php esc_html_e('Periodically refresh modified status and update posts in your Synced bucket from Google Drive. New bucket articles are still imported manually.', 'autodocs-publisher'); ?></p>
                         <p>
                             <label>
-                                <input type="checkbox" name="<?php echo esc_attr(AutoDocs_Settings::OPTION_NAME); ?>[cron_enabled]" value="1" <?php checked($cron_enabled); ?> />
+                                <input type="checkbox" id="autodocs-cron-enabled" name="<?php echo esc_attr(AutoDocs_Settings::OPTION_NAME); ?>[cron_enabled]" value="1" <?php checked($cron_enabled); ?> />
                                 <?php esc_html_e('Enable automatic sync', 'autodocs-publisher'); ?>
                             </label>
                         </p>
-                        <p>
+                        <p class="autodocs-cron-settings__row">
                             <label for="autodocs-cron-interval"><?php esc_html_e('Run every', 'autodocs-publisher'); ?></label>
                             <select id="autodocs-cron-interval" name="<?php echo esc_attr(AutoDocs_Settings::OPTION_NAME); ?>[cron_interval]">
-                                <option value="15min" <?php selected($cron_interval, '15min'); ?>><?php esc_html_e('15 minutes', 'autodocs-publisher'); ?></option>
-                                <option value="30min" <?php selected($cron_interval, '30min'); ?>><?php esc_html_e('30 minutes', 'autodocs-publisher'); ?></option>
-                                <option value="hourly" <?php selected($cron_interval, 'hourly'); ?>><?php esc_html_e('Hour', 'autodocs-publisher'); ?></option>
-                                <option value="twicedaily" <?php selected($cron_interval, 'twicedaily'); ?>><?php esc_html_e('Twice daily', 'autodocs-publisher'); ?></option>
-                                <option value="daily" <?php selected($cron_interval, 'daily'); ?>><?php esc_html_e('Daily', 'autodocs-publisher'); ?></option>
+                                <?php foreach (AutoDocs_Cron::interval_labels() as $value => $label) : ?>
+                                    <option value="<?php echo esc_attr($value); ?>" <?php selected($cron_interval, $value); ?>><?php echo esc_html($label); ?></option>
+                                <?php endforeach; ?>
                             </select>
                         </p>
+                        <p class="autodocs-cron-settings__row autodocs-cron-settings__row--time" id="autodocs-cron-time-row">
+                            <label for="autodocs-cron-time"><?php esc_html_e('Time of day', 'autodocs-publisher'); ?></label>
+                            <input
+                                type="time"
+                                id="autodocs-cron-time"
+                                name="<?php echo esc_attr(AutoDocs_Settings::OPTION_NAME); ?>[cron_time]"
+                                value="<?php echo esc_attr($cron_time); ?>"
+                                step="60"
+                            />
+                            <span class="description autodocs-cron-settings__tz"><?php echo esc_html(sprintf(__('Site timezone: %s', 'autodocs-publisher'), $cron_timezone !== '' ? $cron_timezone : __('not set', 'autodocs-publisher'))); ?></span>
+                        </p>
+                        <p class="description autodocs-cron-settings__schedule" id="autodocs-cron-schedule-summary"><?php echo esc_html($cron_schedule_description); ?></p>
+                        <p class="description autodocs-cron-settings__save-hint"><?php esc_html_e('Save settings to apply interval or time changes to the WordPress schedule.', 'autodocs-publisher'); ?></p>
                         <ul class="autodocs-cron-settings__meta description">
                             <li>
                                 <strong><?php esc_html_e('Next run:', 'autodocs-publisher'); ?></strong>

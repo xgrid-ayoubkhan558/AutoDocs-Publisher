@@ -82,8 +82,10 @@ class AutoDocs_Sync_Service
         return $this->engine->sync_all_configured_folders();
     }
 
-    public function sync_all($force = false)
+    public function sync_all($force = false, $source = AutoDocs_Sync_Meta::SYNC_SOURCE_MANUAL)
     {
+        $this->engine->set_sync_source($source);
+
         return $this->engine->sync_all($force);
     }
 
