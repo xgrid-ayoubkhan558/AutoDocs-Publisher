@@ -168,29 +168,13 @@ final class AutoDocs_Sync_Engine
             return $result;
         }
 
-        $doc_file = null;
-        $image_file = null;
-
-        foreach ($files as $file) {
-            if (AutoDocs_Sync_Meta::MIME_DOC === $file['mimeType'] && null === $doc_file) {
-                $doc_file = $file;
-            }
-            if (null === $image_file) {
-                $is_image = in_array(
-                    $file['mimeType'],
-                    array('image/jpeg', 'image/png', 'image/gif', 'image/webp'),
-                    true
-                );
-                $is_named = 0 === stripos((string) ($file['name'] ?? ''), 'featured');
-                if ($is_image || $is_named) {
-                    $image_file = $file;
-                }
-            }
-        }
-
-        if (null === $doc_file) {
+        $picked = AutoDocs_Drive_Folder_Files::pick_doc_and_featured_image($files);
+        if (is_wp_error($picked)) {
             return $result;
         }
+
+        $doc_file = $picked['doc'];
+        $image_file = $picked['image'];
 
         $post_id = $this->repository->post_id_for_folder($folder['id']);
 

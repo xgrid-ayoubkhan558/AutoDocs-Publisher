@@ -53,17 +53,13 @@ final class AutoDocs_Sync_Import
         $folder_id = is_string($folder_id) ? trim($folder_id) : '';
         $bucket_key = sanitize_key((string) $bucket_key);
         if ('modified' === $bucket_key) {
-            $bucket_key = 'synced';
+            $bucket_key = AutoDocs_Bucket_Keys::SYNCED;
         }
-        $map = array(
-            'new' => 'folder_new',
-            'synced' => 'folder_synced',
-        );
-        if (! isset($map[$bucket_key])) {
+        if (! in_array($bucket_key, array(AutoDocs_Bucket_Keys::NEW, AutoDocs_Bucket_Keys::SYNCED), true)) {
             return new WP_Error('autodocs_bad_bucket', __('Invalid bucket.', 'autodocs-publisher'));
         }
 
-        $parent = (string) $this->settings->get($map[$bucket_key], '');
+        $parent = (string) $this->settings->get(AutoDocs_Bucket_Keys::settings_option_key($bucket_key), '');
         if ($parent === '') {
             return new WP_Error(
                 'autodocs_no_bucket',
@@ -111,58 +107,21 @@ final class AutoDocs_Sync_Import
      */
     public function prepare_folder_import($folder_id, $bucket_key = 'new')
     {
-        $bucket_key = sanitize_key((string) $bucket_key);
-        if ('modified' === $bucket_key) {
-            $bucket_key = 'synced';
-        }
-        if (! in_array($bucket_key, array('new', 'synced'), true)) {
-            $bucket_key = 'new';
-        }
+        $bucket_key = AutoDocs_Bucket_Keys::normalize($bucket_key);
 
         $check = $this->assert_folder_in_bucket_by_key($folder_id, $bucket_key);
         if (is_wp_error($check)) {
             return $check;
         }
 
-        $files = $this->google_client->list_files_in_folder($folder_id);
-        if (is_wp_error($files)) {
-            return $files;
+        $picked = $this->load_folder_doc_and_image($folder_id);
+        if (is_wp_error($picked)) {
+            return $picked;
         }
 
-        $doc_file = null;
-        $image_file = null;
-        $drive_files = array();
-        foreach ($files as $file) {
-            if (AutoDocs_Sync_Meta::MIME_DOC === ($file['mimeType'] ?? '') && null === $doc_file) {
-                $doc_file = $file;
-                continue;
-            }
-            $mt = $file['mimeType'] ?? '';
-            $is_image = in_array(
-                $mt,
-                array('image/jpeg', 'image/png', 'image/gif', 'image/webp'),
-                true
-            );
-            $fname = isset($file['name']) ? (string) $file['name'] : '';
-            $is_named = $fname !== '' && 0 === stripos($fname, 'featured');
-            if ($is_image || $is_named) {
-                if (null === $image_file) {
-                    $image_file = $file;
-                }
-            }
-            $drive_files[] = array(
-                'id' => isset($file['id']) ? (string) $file['id'] : '',
-                'name' => $fname !== '' ? $fname : __('(unnamed)', 'autodocs-publisher'),
-                'mimeType' => $mt,
-                'size' => isset($file['size']) ? (int) $file['size'] : 0,
-                'web_view_link' => isset($file['webViewLink']) ? (string) $file['webViewLink'] : '',
-                'thumbnail_url' => isset($file['thumbnailLink']) ? (string) $file['thumbnailLink'] : '',
-            );
-        }
-
-        if (null === $doc_file) {
-            return new WP_Error('autodocs_no_doc', __('No Google Doc found in this folder.', 'autodocs-publisher'));
-        }
+        $doc_file = $picked['doc'];
+        $image_file = $picked['image'];
+        $drive_files = AutoDocs_Drive_Folder_Files::files_for_admin_preview($picked['files']);
 
         $html = $this->google_client->export_doc_html($doc_file['id']);
         if (is_wp_error($html)) {
@@ -317,47 +276,22 @@ final class AutoDocs_Sync_Import
      */
     public function import_folder_from_drive($folder_id, array $input)
     {
-        $bucket_key = isset($input['bucket_key']) ? sanitize_key((string) $input['bucket_key']) : 'new';
-        if ('modified' === $bucket_key) {
-            $bucket_key = 'synced';
-        }
-        if (! in_array($bucket_key, array('new', 'synced'), true)) {
-            $bucket_key = 'new';
-        }
+        $bucket_key = isset($input['bucket_key'])
+            ? AutoDocs_Bucket_Keys::normalize((string) $input['bucket_key'])
+            : AutoDocs_Bucket_Keys::NEW;
 
         $check = $this->assert_folder_in_bucket_by_key($folder_id, $bucket_key);
         if (is_wp_error($check)) {
             return $check;
         }
 
-        $files = $this->google_client->list_files_in_folder($folder_id);
-        if (is_wp_error($files)) {
-            return $files;
+        $picked = $this->load_folder_doc_and_image($folder_id);
+        if (is_wp_error($picked)) {
+            return $picked;
         }
 
-        $doc_file = null;
-        $image_file = null;
-        foreach ($files as $file) {
-            if (AutoDocs_Sync_Meta::MIME_DOC === $file['mimeType'] && null === $doc_file) {
-                $doc_file = $file;
-            }
-            if (null === $image_file) {
-                $is_image = in_array(
-                    $file['mimeType'],
-                    array('image/jpeg', 'image/png', 'image/gif', 'image/webp'),
-                    true
-                );
-                $fname = isset($file['name']) ? (string) $file['name'] : '';
-                $is_named = $fname !== '' && 0 === stripos($fname, 'featured');
-                if ($is_image || $is_named) {
-                    $image_file = $file;
-                }
-            }
-        }
-
-        if (null === $doc_file) {
-            return new WP_Error('autodocs_no_doc', __('No Google Doc found in this folder.', 'autodocs-publisher'));
-        }
+        $doc_file = $picked['doc'];
+        $image_file = $picked['image'];
 
         $html = $this->google_client->export_doc_html($doc_file['id']);
         if (is_wp_error($html)) {
@@ -399,12 +333,8 @@ final class AutoDocs_Sync_Import
             $excerpt = isset($input['post_excerpt']) ? sanitize_textarea_field(wp_unslash($input['post_excerpt'])) : '';
         }
 
-        $bucket_opt_map = array(
-            'new' => 'folder_new',
-            'synced' => 'folder_synced',
-        );
-        $source_bucket_id = (string) $this->settings->get($bucket_opt_map[$bucket_key], '');
-        $synced_bucket = (string) $this->settings->get('folder_synced', '');
+        $source_bucket_id = (string) $this->settings->get(AutoDocs_Bucket_Keys::settings_option_key($bucket_key), '');
+        $synced_bucket = (string) $this->settings->get(AutoDocs_Bucket_Keys::settings_option_key(AutoDocs_Bucket_Keys::SYNCED), '');
 
         $sanitized_body = $this->media->sanitize_google_html($body_html);
         $acf_field = $this->resolve_acf_body_field_for_import($input);
@@ -508,7 +438,7 @@ final class AutoDocs_Sync_Import
         }
 
         $moved = false;
-        $do_move = ('new' === $bucket_key) && ! empty($input['move_to_synced']) && $synced_bucket !== '';
+        $do_move = (AutoDocs_Bucket_Keys::NEW === $bucket_key) && ! empty($input['move_to_synced']) && $synced_bucket !== '';
         if ($do_move) {
             $mv = $this->google_client->move_file_to_parent($folder_id, $synced_bucket);
             if (is_wp_error($mv)) {
@@ -528,6 +458,35 @@ final class AutoDocs_Sync_Import
     public function import_new_folder_from_drive($folder_id, array $input)
     {
         return $this->import_folder_from_drive($folder_id, $input);
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     * @return string
+     */
+    /**
+     * List Drive folder files and pick the Google Doc plus optional featured image.
+     *
+     * @param string $folder_id
+     * @return array{doc: array<string, mixed>, image: array<string, mixed>|null, files: array<int, array<string, mixed>>}|WP_Error
+     */
+    private function load_folder_doc_and_image($folder_id)
+    {
+        $files = $this->google_client->list_files_in_folder($folder_id);
+        if (is_wp_error($files)) {
+            return $files;
+        }
+
+        $picked = AutoDocs_Drive_Folder_Files::pick_doc_and_featured_image($files);
+        if (is_wp_error($picked)) {
+            return $picked;
+        }
+
+        return array(
+            'doc' => $picked['doc'],
+            'image' => $picked['image'],
+            'files' => $files,
+        );
     }
 
     /**
@@ -726,14 +685,7 @@ final class AutoDocs_Sync_Import
      */
     public function import_folders_bulk(array $folder_ids, $bucket_key, array $input)
     {
-        $bucket_key = sanitize_key((string) $bucket_key);
-        if ('modified' === $bucket_key) {
-            $bucket_key = 'synced';
-        }
-        if (! in_array($bucket_key, array('new', 'synced'), true)) {
-            $bucket_key = 'new';
-        }
-
+        $bucket_key = AutoDocs_Bucket_Keys::normalize($bucket_key);
         $input['bucket_key'] = $bucket_key;
 
         $results = array();

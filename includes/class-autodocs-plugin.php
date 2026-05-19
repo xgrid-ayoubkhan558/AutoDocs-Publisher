@@ -4,6 +4,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+require_once AUTODOCS_PUBLISHER_DIR . 'includes/autodocs-autoload.php';
 require_once AUTODOCS_PUBLISHER_DIR . 'includes/class-autodocs-settings.php';
 require_once AUTODOCS_PUBLISHER_DIR . 'includes/class-autodocs-cron.php';
 require_once AUTODOCS_PUBLISHER_DIR . 'includes/class-autodocs-acf-helpers.php';

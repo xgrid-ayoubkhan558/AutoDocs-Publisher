@@ -169,7 +169,14 @@ class AutoDocs_Admin
             $ver,
             true
         );
-        wp_register_script('autodocs-admin-init', $url . 'assets/js/autodocs-admin-init.js', array('autodocs-admin-bucket-ui'), $ver, true);
+        wp_register_script('autodocs-admin-cron', $url . 'assets/js/autodocs-admin-cron.js', array('autodocs-admin-core'), $ver, true);
+        wp_register_script(
+            'autodocs-admin-init',
+            $url . 'assets/js/autodocs-admin-init.js',
+            array('autodocs-admin-bucket-ui', 'autodocs-admin-cron'),
+            $ver,
+            true
+        );
 
         wp_enqueue_script('autodocs-admin-init');
 
